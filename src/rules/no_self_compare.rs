@@ -1,12 +1,9 @@
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use if_chain::if_chain;
-
-use deno_ast::{
-  view::{BinaryOp, NodeTrait},
-  SourceRanged,
-};
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::GetSpan;
 use derive_more::Display;
+
 #[derive(Debug)]
 pub struct NoSelfCompare;
 
@@ -25,47 +22,51 @@ impl LintRule for NoSelfCompare {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: deno_ast::view::Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoSelfCompareHandler.traverse(program, context);
+    let mut handler = NoSelfCompareHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoSelfCompareHandler;
 
-impl Handler for NoSelfCompareHandler {
-  fn bin_expr(
+impl Handler<'_> for NoSelfCompareHandler {
+  fn binary_expression(
     &mut self,
-    binary_expression: &deno_ast::view::BinExpr,
+    binary_expression: &BinaryExpression,
     ctx: &mut Context,
   ) {
-    if_chain! {
-      if matches!(
-        binary_expression.op(),
-        BinaryOp::EqEqEq
-          | BinaryOp::EqEq
-          | BinaryOp::NotEqEq
-          | BinaryOp::NotEq
-          | BinaryOp::Gt
-          | BinaryOp::Lt
-          | BinaryOp::GtEq
-          | BinaryOp::LtEq
-      );
+    if !matches!(
+      binary_expression.operator,
+      BinaryOperator::StrictEquality
+        | BinaryOperator::Equality
+        | BinaryOperator::StrictInequality
+        | BinaryOperator::Inequality
+        | BinaryOperator::GreaterThan
+        | BinaryOperator::LessThan
+        | BinaryOperator::GreaterEqualThan
+        | BinaryOperator::LessEqualThan
+    ) {
+      return;
+    }
 
-      if binary_expression.left.text() == binary_expression.right.text();
+    let src = ctx.source_text();
+    let left_span = binary_expression.left.span();
+    let right_span = binary_expression.right.span();
+    let left_text = &src[left_span.start as usize..left_span.end as usize];
+    let right_text = &src[right_span.start as usize..right_span.end as usize];
 
-      then {
-        ctx.add_diagnostic_with_hint(
-          binary_expression.range(),
-          CODE,
-          NoSelfCompareMessage::Invalid(binary_expression.left.text().to_string()),
-          HINT,
-        )
-      }
-
+    if left_text == right_text {
+      ctx.add_diagnostic_with_hint(
+        binary_expression.span,
+        CODE,
+        NoSelfCompareMessage::Invalid(left_text.to_string()),
+        HINT,
+      )
     }
   }
 }

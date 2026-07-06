@@ -4,14 +4,14 @@ use super::LintRule;
 use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
-use crate::handler::Traverse;
 use crate::tags;
 use crate::tags::Tags;
-use crate::Program;
 
-use deno_ast::view as ast_view;
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  ComputedMemberExpression, Expression, ExpressionStatement, Program,
+  StaticMemberExpression,
+};
+use deno_ast::oxc::span::Span;
 use if_chain::if_chain;
 
 #[derive(Debug)]
@@ -31,19 +31,20 @@ impl LintRule for NoWindow {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoWindowGlobalHandler.traverse(program, context);
+    let mut handler = NoWindowGlobalHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoWindowGlobalHandler;
 
 impl NoWindowGlobalHandler {
-  fn add_diagnostic(&self, ctx: &mut Context, range: SourceRange) {
+  fn add_diagnostic(&self, ctx: &mut Context, range: Span) {
     ctx.add_diagnostic_with_fixes(
       range,
       CODE,
@@ -58,29 +59,66 @@ impl NoWindowGlobalHandler {
       }],
     );
   }
+
+  fn is_window_global(
+    &self,
+    ident: &deno_ast::oxc::ast::ast::IdentifierReference,
+    ctx: &Context,
+  ) -> bool {
+    if ident.name != "window" {
+      return false;
+    }
+    // Check if the reference resolves to a local binding via OXC scoping.
+    // If it resolves to a symbol, it's shadowed by a local declaration.
+    if let Some(ref_id) = ident.reference_id.get() {
+      let reference = ctx.scoping().get_reference(ref_id);
+      if reference.symbol_id().is_some() {
+        return false; // shadowed
+      }
+    }
+    true
+  }
 }
 
-impl Handler for NoWindowGlobalHandler {
-  fn member_expr(&mut self, expr: &ast_view::MemberExpr, ctx: &mut Context) {
-    use deno_ast::view::Expr;
+impl Handler<'_> for NoWindowGlobalHandler {
+  fn static_member_expression(
+    &mut self,
+    expr: &StaticMemberExpression,
+    ctx: &mut Context,
+  ) {
     if_chain! {
-      if let Expr::Ident(ident) = &expr.obj;
-      if ident.sym() == "window";
-      if ctx.scope().is_global(&ident.inner.to_id());
+      if let Expression::Identifier(ident) = &expr.object;
+      if self.is_window_global(ident, ctx);
       then {
-        self.add_diagnostic(ctx, ident.range());
+        self.add_diagnostic(ctx, ident.span);
       }
     }
   }
 
-  fn expr_stmt(&mut self, expr: &ast_view::ExprStmt, ctx: &mut Context) {
-    use deno_ast::view::Expr;
+  fn computed_member_expression(
+    &mut self,
+    expr: &ComputedMemberExpression,
+    ctx: &mut Context,
+  ) {
     if_chain! {
-      if let Expr::Ident(ident) = &expr.expr;
-      if ident.sym() == "window";
-      if ctx.scope().is_global(&ident.inner.to_id());
+      if let Expression::Identifier(ident) = &expr.object;
+      if self.is_window_global(ident, ctx);
       then {
-        self.add_diagnostic(ctx, ident.range());
+        self.add_diagnostic(ctx, ident.span);
+      }
+    }
+  }
+
+  fn expression_statement(
+    &mut self,
+    expr: &ExpressionStatement,
+    ctx: &mut Context,
+  ) {
+    if_chain! {
+      if let Expression::Identifier(ident) = &expr.expression;
+      if self.is_window_global(ident, ctx);
+      then {
+        self.add_diagnostic(ctx, ident.span);
       }
     }
   }

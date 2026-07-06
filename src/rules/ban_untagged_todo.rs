@@ -1,10 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::Program;
-use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{Comment, CommentKind, Program};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -20,34 +17,35 @@ impl LintRule for BanUntaggedTodo {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    _program: Program,
+    context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
-    let mut violated_comment_ranges = Vec::new();
+    let mut violated_comment_spans = Vec::new();
 
-    violated_comment_ranges.extend(context.all_comments().filter_map(|c| {
-      if check_comment(c) {
-        Some(c.range())
+    violated_comment_spans.extend(context.all_comments().filter_map(|c| {
+      if check_comment(c, context) {
+        Some(c.span)
       } else {
         None
       }
     }));
 
-    for range in violated_comment_ranges {
-      context.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
+    for span in violated_comment_spans {
+      context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 }
 
 /// Returns `true` if the comment should be reported.
-fn check_comment(comment: &Comment) -> bool {
+fn check_comment(comment: &Comment, ctx: &Context) -> bool {
   if comment.kind != CommentKind::Line {
     return false;
   }
 
-  let text = comment.text.to_lowercase();
+  let text = ctx.comment_text(comment);
+  let text = text.to_lowercase();
   let text = text.trim_start();
 
   if !text.starts_with("todo") {

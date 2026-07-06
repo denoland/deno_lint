@@ -1,14 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  Expr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName, JSXExpr,
-  Lit, Tpl,
+use deno_ast::oxc::ast::ast::{
+  Expression, JSXAttributeItem, JSXAttributeName, JSXAttributeValue,
+  JSXElementName, JSXExpression, JSXOpeningElement, Program, TemplateLiteral,
 };
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::span::GetSpan;
 
 #[derive(Debug)]
 pub struct JSXButtonHasType;
@@ -24,12 +23,13 @@ impl LintRule for JSXButtonHasType {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    HasButtonTypeHandler.traverse(program, context);
+    let mut handler = HasButtonTypeHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -71,140 +71,122 @@ impl DiagnosticKind {
 
 struct HasButtonTypeHandler;
 
-impl Handler for HasButtonTypeHandler {
+impl Handler<'_> for HasButtonTypeHandler {
   fn jsx_opening_element(
     &mut self,
-    node: &ast_view::JSXOpeningElement,
+    node: &JSXOpeningElement,
     ctx: &mut Context,
   ) {
-    if let JSXElementName::Ident(id) = node.name {
-      if id.sym() != "button" {
-        return;
-      }
+    let is_button = match &node.name {
+      JSXElementName::Identifier(id) => id.name.as_str() == "button",
+      _ => false,
+    };
+    if !is_button {
+      return;
+    }
 
-      let mut found = false;
-      let mut has_spread = false;
-      for attr in node.attrs {
-        let JSXAttrOrSpread::JSXAttr(attr) = attr else {
-          has_spread = true;
-          continue;
-        };
+    let mut found = false;
+    let mut has_spread = false;
+    for attr in &node.attributes {
+      let JSXAttributeItem::Attribute(attr) = attr else {
+        has_spread = true;
+        continue;
+      };
 
-        let JSXAttrName::Ident(name) = attr.name else {
-          continue;
-        };
+      let JSXAttributeName::Identifier(name) = &attr.name else {
+        continue;
+      };
 
-        if name.sym() == "type" {
-          found = true;
+      if name.name.as_str() == "type" {
+        found = true;
 
-          if let Some(attr_value) = attr.value {
-            let kind = DiagnosticKind::WrongValue;
-            match attr_value {
-              JSXAttrValue::Str(lit_str) => {
-                let value = lit_str.value().to_string_lossy();
-                if !is_valid_value(&value) {
-                  ctx.add_diagnostic_with_hint(
-                    attr_value.range(),
-                    CODE,
-                    kind.message(),
-                    kind.hint(),
-                  );
-                }
+        if let Some(attr_value) = &attr.value {
+          let kind = DiagnosticKind::WrongValue;
+          match attr_value {
+            JSXAttributeValue::StringLiteral(lit_str) => {
+              if !is_valid_value(lit_str.value.as_str()) {
+                ctx.add_diagnostic_with_hint(
+                  attr_value.span(),
+                  CODE,
+                  kind.message(),
+                  kind.hint(),
+                );
               }
-              JSXAttrValue::JSXExprContainer(expr) => {
-                let JSXExpr::Expr(expr) = expr.expr else {
-                  continue;
-                };
-
-                match expr {
-                  Expr::Cond(cond_expr) => {
-                    match cond_expr.cons {
-                      Expr::Lit(lit) => {
-                        check_literal_value(ctx, &lit);
-                      }
-                      Expr::Tpl(tpl) => check_tpl(ctx, tpl),
-                      _ => ctx.add_diagnostic_with_hint(
-                        cond_expr.cons.range(),
+            }
+            JSXAttributeValue::ExpressionContainer(expr) => {
+              let JSXExpression::EmptyExpression(_) = &expr.expression else {
+                match &expr.expression {
+                  JSXExpression::BooleanLiteral(lit) => {
+                    ctx.add_diagnostic_with_hint(
+                      lit.span,
+                      CODE,
+                      kind.message(),
+                      kind.hint(),
+                    );
+                  }
+                  JSXExpression::NullLiteral(lit) => {
+                    ctx.add_diagnostic_with_hint(
+                      lit.span,
+                      CODE,
+                      kind.message(),
+                      kind.hint(),
+                    );
+                  }
+                  JSXExpression::NumericLiteral(lit) => {
+                    ctx.add_diagnostic_with_hint(
+                      lit.span,
+                      CODE,
+                      kind.message(),
+                      kind.hint(),
+                    );
+                  }
+                  JSXExpression::StringLiteral(lit) => {
+                    if !is_valid_value(lit.value.as_str()) {
+                      ctx.add_diagnostic_with_hint(
+                        lit.span,
                         CODE,
                         kind.message(),
                         kind.hint(),
-                      ),
-                    };
-
-                    match cond_expr.alt {
-                      Expr::Lit(lit) => {
-                        check_literal_value(ctx, &lit);
-                      }
-                      Expr::Tpl(tpl) => check_tpl(ctx, tpl),
-                      _ => ctx.add_diagnostic_with_hint(
-                        cond_expr.alt.range(),
-                        CODE,
-                        kind.message(),
-                        kind.hint(),
-                      ),
-                    };
+                      );
+                    }
                   }
-                  Expr::Lit(lit) => {
-                    check_literal_value(ctx, &lit);
+                  JSXExpression::TemplateLiteral(tpl) => {
+                    check_tpl(ctx, tpl);
                   }
-                  Expr::Tpl(tpl) => check_tpl(ctx, tpl),
+                  JSXExpression::ConditionalExpression(cond_expr) => {
+                    check_expression_value(ctx, &cond_expr.consequent);
+                    check_expression_value(ctx, &cond_expr.alternate);
+                  }
                   _ => {
                     // We can't reliably check these cases without
                     // type information. Therefore, we ignore them.
                   }
                 }
-              }
-              _ => {
-                // We can't reliably check these cases without
-                // type information. Therefore, we ignore them.
-              }
+                continue;
+              };
             }
-          } else {
-            let kind = DiagnosticKind::MissingValue;
-            ctx.add_diagnostic_with_hint(
-              attr.name.range(),
-              CODE,
-              kind.message(),
-              kind.hint(),
-            );
-            return;
-          };
-        }
-      }
-
-      if !found && !has_spread {
-        let kind = DiagnosticKind::MissingTypeAttr;
-        ctx.add_diagnostic_with_hint(
-          node.name.range(),
-          CODE,
-          kind.message(),
-          kind.hint(),
-        );
+            _ => {
+              // We can't reliably check these cases without
+              // type information. Therefore, we ignore them.
+            }
+          }
+        } else {
+          let kind = DiagnosticKind::MissingValue;
+          ctx.add_diagnostic_with_hint(
+            attr.name.span(),
+            CODE,
+            kind.message(),
+            kind.hint(),
+          );
+          return;
+        };
       }
     }
-  }
-}
 
-fn is_valid_value(value: &str) -> bool {
-  value == "submit" || value == "button" || value == "reset"
-}
-
-fn check_tpl(ctx: &mut Context, tpl: &Tpl<'_>) {
-  let kind = DiagnosticKind::WrongValue;
-  if !tpl.exprs.is_empty() {
-    ctx.add_diagnostic_with_hint(
-      tpl.range(),
-      CODE,
-      kind.message(),
-      kind.hint(),
-    );
-    return;
-  }
-
-  if let Some(first) = tpl.quasis.first() {
-    if !is_valid_value(first.inner.raw.as_str()) {
+    if !found && !has_spread {
+      let kind = DiagnosticKind::MissingTypeAttr;
       ctx.add_diagnostic_with_hint(
-        tpl.range(),
+        node.name.span(),
         CODE,
         kind.message(),
         kind.hint(),
@@ -213,27 +195,56 @@ fn check_tpl(ctx: &mut Context, tpl: &Tpl<'_>) {
   }
 }
 
-fn check_literal_value(ctx: &mut Context, lit: &Lit) {
+fn is_valid_value(value: &str) -> bool {
+  value == "submit" || value == "button" || value == "reset"
+}
+
+fn check_tpl(ctx: &mut Context, tpl: &TemplateLiteral) {
+  let kind = DiagnosticKind::WrongValue;
+  if !tpl.expressions.is_empty() {
+    ctx.add_diagnostic_with_hint(tpl.span, CODE, kind.message(), kind.hint());
+    return;
+  }
+
+  if let Some(first) = tpl.quasis.first() {
+    if !is_valid_value(first.value.raw.as_str()) {
+      ctx.add_diagnostic_with_hint(tpl.span, CODE, kind.message(), kind.hint());
+    }
+  }
+}
+
+fn check_expression_value(ctx: &mut Context, expr: &Expression) {
   let kind = DiagnosticKind::WrongValue;
 
-  match lit {
-    Lit::Str(lit_str) => {
-      let value = lit_str.value().to_string_lossy();
-      if !is_valid_value(&value) {
+  match expr {
+    Expression::StringLiteral(lit_str) => {
+      if !is_valid_value(lit_str.value.as_str()) {
         ctx.add_diagnostic_with_hint(
-          lit.range(),
+          lit_str.span,
           CODE,
           kind.message(),
           kind.hint(),
         );
       }
     }
-    _ => ctx.add_diagnostic_with_hint(
-      lit.range(),
-      CODE,
-      kind.message(),
-      kind.hint(),
-    ),
+    Expression::TemplateLiteral(tpl) => check_tpl(ctx, tpl),
+    Expression::BooleanLiteral(lit) => {
+      ctx.add_diagnostic_with_hint(lit.span, CODE, kind.message(), kind.hint());
+    }
+    Expression::NullLiteral(lit) => {
+      ctx.add_diagnostic_with_hint(lit.span, CODE, kind.message(), kind.hint());
+    }
+    Expression::NumericLiteral(lit) => {
+      ctx.add_diagnostic_with_hint(lit.span, CODE, kind.message(), kind.hint());
+    }
+    _ => {
+      ctx.add_diagnostic_with_hint(
+        expr.span(),
+        CODE,
+        kind.message(),
+        kind.hint(),
+      );
+    }
   }
 }
 

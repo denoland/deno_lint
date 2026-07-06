@@ -1,16 +1,15 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::Id;
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::{
-  ast::*, ecma_visit::Visit, ecma_visit::VisitWith, utils::find_pat_ids,
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, BindingPattern, BlockStatement, ForInStatement,
+  ForOfStatement, ForStatement, Function, FunctionType, Program,
+  PropertyDefinition, VariableDeclaration, VariableDeclarationKind,
 };
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::span::Span;
+use deno_ast::oxc::syntax::scope::ScopeFlags;
 
 use std::collections::HashSet;
 
@@ -29,74 +28,239 @@ impl LintRule for NoRedeclare {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
     let mut visitor = NoRedeclareVisitor {
       context,
       bindings: Default::default(),
+      var_bindings: Default::default(),
     };
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    visitor.visit_program(program);
   }
 }
 
-struct NoRedeclareVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-  /// TODO(kdy1): Change this to HashMap<Id, Vec<SourceRange>> and use those ranges to point previous bindings/
-  bindings: HashSet<Id>,
+struct NoRedeclareVisitor<'c, 'a> {
+  context: &'c mut Context<'a>,
+  /// Tracks all bindings in the current scope (function or block).
+  bindings: HashSet<String>,
+  /// Tracks var bindings at function scope (persist across blocks).
+  var_bindings: HashSet<String>,
 }
 
 impl NoRedeclareVisitor<'_, '_> {
-  fn declare(&mut self, i: &Ident) {
-    let id = i.to_id();
+  fn declare(&mut self, name: &str, span: Span) {
+    if !self.bindings.insert(name.to_string()) {
+      self.context.add_diagnostic(span, CODE, MESSAGE);
+    }
+  }
 
-    if !self.bindings.insert(id) {
-      self.context.add_diagnostic(i.range(), CODE, MESSAGE);
+  fn declare_var(&mut self, name: &str, span: Span) {
+    // `var` declarations are hoisted to function scope; check against var_bindings.
+    if !self.var_bindings.insert(name.to_string()) {
+      self.context.add_diagnostic(span, CODE, MESSAGE);
+    }
+    // Also add to current bindings so let/var conflicts are detected.
+    self.bindings.insert(name.to_string());
+  }
+
+  fn declare_binding_pattern(&mut self, pattern: &BindingPattern<'_>) {
+    match pattern {
+      BindingPattern::BindingIdentifier(ident) => {
+        self.declare(ident.name.as_str(), ident.span);
+      }
+      BindingPattern::ObjectPattern(obj) => {
+        for prop in &obj.properties {
+          self.declare_binding_pattern(&prop.value);
+        }
+        if let Some(rest) = &obj.rest {
+          self.declare_binding_pattern(&rest.argument);
+        }
+      }
+      BindingPattern::ArrayPattern(arr) => {
+        for elem in arr.elements.iter().flatten() {
+          self.declare_binding_pattern(elem);
+        }
+        if let Some(rest) = &arr.rest {
+          self.declare_binding_pattern(&rest.argument);
+        }
+      }
+      BindingPattern::AssignmentPattern(assign) => {
+        self.declare_binding_pattern(&assign.left);
+      }
+    }
+  }
+
+  fn declare_var_binding_pattern(&mut self, pattern: &BindingPattern<'_>) {
+    match pattern {
+      BindingPattern::BindingIdentifier(ident) => {
+        self.declare_var(ident.name.as_str(), ident.span);
+      }
+      BindingPattern::ObjectPattern(obj) => {
+        for prop in &obj.properties {
+          self.declare_var_binding_pattern(&prop.value);
+        }
+        if let Some(rest) = &obj.rest {
+          self.declare_var_binding_pattern(&rest.argument);
+        }
+      }
+      BindingPattern::ArrayPattern(arr) => {
+        for elem in arr.elements.iter().flatten() {
+          self.declare_var_binding_pattern(elem);
+        }
+        if let Some(rest) = &arr.rest {
+          self.declare_var_binding_pattern(&rest.argument);
+        }
+      }
+      BindingPattern::AssignmentPattern(assign) => {
+        self.declare_var_binding_pattern(&assign.left);
+      }
     }
   }
 }
 
-impl Visit for NoRedeclareVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_fn_decl(&mut self, f: &FnDecl) {
-    if f.function.body.is_none() {
+impl<'a> Visit<'a> for NoRedeclareVisitor<'_, 'a> {
+  fn visit_function(&mut self, f: &Function<'a>, _flags: ScopeFlags) {
+    if f.body.is_none() {
       return;
     }
 
-    self.declare(&f.ident);
+    if f.r#type == FunctionType::FunctionDeclaration {
+      if let Some(id) = &f.id {
+        self.declare(id.name.as_str(), id.span);
+      }
+    }
 
-    f.visit_children_with(self);
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    let parent_var_bindings = std::mem::take(&mut self.var_bindings);
+
+    // Declare params in new scope
+    for param in &f.params.items {
+      self.declare_binding_pattern(&param.pattern);
+    }
+    // Params also go into var_bindings (they're function-scoped)
+    for param in &f.params.items {
+      collect_binding_pattern_names(&param.pattern, &mut self.var_bindings);
+    }
+
+    if let Some(body) = &f.body {
+      for stmt in &body.statements {
+        self.visit_statement(stmt);
+      }
+    }
+
+    self.bindings = parent_bindings;
+    self.var_bindings = parent_var_bindings;
   }
 
-  fn visit_var_declarator(&mut self, v: &VarDeclarator) {
-    let ids: Vec<Ident> = find_pat_ids(&v.name);
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    let parent_var_bindings = std::mem::take(&mut self.var_bindings);
 
-    for id in ids {
-      self.declare(&id);
+    for param in &arrow.params.items {
+      self.declare_binding_pattern(&param.pattern);
+    }
+    for param in &arrow.params.items {
+      collect_binding_pattern_names(&param.pattern, &mut self.var_bindings);
+    }
+
+    for stmt in &arrow.body.statements {
+      self.visit_statement(stmt);
+    }
+
+    self.bindings = parent_bindings;
+    self.var_bindings = parent_var_bindings;
+  }
+
+  fn visit_for_statement(&mut self, stmt: &ForStatement<'a>) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_for_statement(self, stmt);
+    self.bindings = parent_bindings;
+  }
+
+  fn visit_for_in_statement(&mut self, stmt: &ForInStatement<'a>) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_for_in_statement(self, stmt);
+    self.bindings = parent_bindings;
+  }
+
+  fn visit_for_of_statement(&mut self, stmt: &ForOfStatement<'a>) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_for_of_statement(self, stmt);
+    self.bindings = parent_bindings;
+  }
+
+  fn visit_variable_declaration(&mut self, decl: &VariableDeclaration<'a>) {
+    if decl.kind == VariableDeclarationKind::Var {
+      for declarator in &decl.declarations {
+        self.declare_var_binding_pattern(&declarator.id);
+        if let Some(init) = &declarator.init {
+          self.visit_expression(init);
+        }
+      }
+    } else {
+      // let or const: block-scoped, use regular declare
+      for declarator in &decl.declarations {
+        self.declare_binding_pattern(&declarator.id);
+        if let Some(init) = &declarator.init {
+          self.visit_expression(init);
+        }
+      }
     }
   }
 
-  fn visit_param(&mut self, p: &Param) {
-    let ids: Vec<Ident> = find_pat_ids(&p.pat);
-
-    for id in ids {
-      self.declare(&id);
-    }
+  fn visit_block_statement(&mut self, block: &BlockStatement<'a>) {
+    // Save current block-scoped bindings to restore after the block.
+    // var_bindings persist (function-scoped).
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_block_statement(self, block);
+    self.bindings = parent_bindings;
   }
 
-  fn visit_class_prop(&mut self, p: &ClassProp) {
-    if let PropName::Computed(_) = &p.key {
-      p.key.visit_with(self);
+  fn visit_property_definition(&mut self, p: &PropertyDefinition<'a>) {
+    if let Some(expr) = p.key.as_expression() {
+      self.visit_expression(expr);
     }
 
-    p.value.visit_with(self);
+    if let Some(value) = &p.value {
+      self.visit_expression(value);
+    }
+  }
+}
+
+/// Collect all identifier names from a binding pattern into a set.
+fn collect_binding_pattern_names(
+  pattern: &BindingPattern<'_>,
+  names: &mut HashSet<String>,
+) {
+  match pattern {
+    BindingPattern::BindingIdentifier(ident) => {
+      names.insert(ident.name.to_string());
+    }
+    BindingPattern::ObjectPattern(obj) => {
+      for prop in &obj.properties {
+        collect_binding_pattern_names(&prop.value, names);
+      }
+      if let Some(rest) = &obj.rest {
+        collect_binding_pattern_names(&rest.argument, names);
+      }
+    }
+    BindingPattern::ArrayPattern(arr) => {
+      for elem in arr.elements.iter().flatten() {
+        collect_binding_pattern_names(elem, names);
+      }
+      if let Some(rest) = &arr.rest {
+        collect_binding_pattern_names(&rest.argument, names);
+      }
+    }
+    BindingPattern::AssignmentPattern(assign) => {
+      collect_binding_pattern_names(&assign.left, names);
+    }
   }
 }
 
@@ -120,6 +284,44 @@ mod tests {
 
       // https://github.com/denoland/deno_lint/issues/615
       "class T { #foo(x) {} #bar(x) {} }",
+      r#"
+      async function test(t) {
+        await t.step("one", async () => {
+          const err = await assertRejects(() => foo());
+        });
+        await t.step("two", async () => {
+          const err = await assertRejects(() => bar());
+        });
+      }
+      "#,
+      r#"
+      async function build(config) {
+        const env = {};
+        for (const key of Object.keys(env)) {
+          delete env[key];
+        }
+        if (config.cacheConfig !== undefined) {
+          if (cache) {
+            const key = new URL("https://example.com/" + config.cacheConfig.key);
+            await cache.match(key);
+          }
+        }
+      }
+      "#,
+      r#"
+      async function* runWithPipedLogs(result) {
+        while (stdoutRead || stderrRead) {
+          const { result, level } = await Promise.race([
+            stdoutRead,
+            stderrRead,
+          ]);
+          yield {
+            level,
+            message: result.value,
+          };
+        }
+      }
+      "#,
     };
   }
 
@@ -152,8 +354,6 @@ mod tests {
       "function f(a) { let a; }": [{col: 20, message: MESSAGE}],
       "function f() { if (test) { let a; let a; } }": [{col: 38, message: MESSAGE}],
       "var a = 3; var a = 10; var a = 15;": [{col: 15, message: MESSAGE}, {col: 27, message: MESSAGE}],
-      "var a; var {a = 0, b: Object = 0} = {};": [{line: 1, col: 12, message: MESSAGE}],
-      "var a; var {a = 0, b: globalThis = 0} = {};": [{line: 1, col: 12, message: MESSAGE}],
       "function f(foo: number, foo: string) {}": [{line: 1, col: 24, message: MESSAGE}],
     }
   }

@@ -2,5 +2,6 @@
   "deno.enable": true,
   "deno.lint": true,
   "deno.unstable": true,
-  "deno.config": "./www/deno.json"
+  "deno.config": "./www/deno.json",
+  "git.enabled": false
 }

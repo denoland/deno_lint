@@ -2,9 +2,9 @@
 
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::{RootNode, SourceRangedForSpanned};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
@@ -40,6 +40,41 @@ fn test_for_whitespace(value: &str) -> Vec<Matches<'_, '_>> {
   matches_vector
 }
 
+/// Collects spans of string literals, template literals, and regex literals
+/// that should be excluded from irregular whitespace checking.
+struct LiteralSpanCollector {
+  literal_spans: Vec<Span>,
+}
+
+impl LiteralSpanCollector {
+  fn new() -> Self {
+    Self {
+      literal_spans: Vec::new(),
+    }
+  }
+}
+
+impl<'a> Visit<'a> for LiteralSpanCollector {
+  fn visit_string_literal(&mut self, lit: &StringLiteral<'a>) {
+    self.literal_spans.push(lit.span);
+  }
+
+  fn visit_template_literal(&mut self, lit: &TemplateLiteral<'a>) {
+    self.literal_spans.push(lit.span);
+    walk::walk_template_literal(self, lit);
+  }
+
+  fn visit_reg_exp_literal(&mut self, lit: &RegExpLiteral<'a>) {
+    self.literal_spans.push(lit.span);
+  }
+}
+
+fn is_inside_literal(pos: u32, literal_spans: &[Span]) -> bool {
+  literal_spans
+    .iter()
+    .any(|span| pos >= span.start && pos < span.end)
+}
+
 impl LintRule for NoIrregularWhitespace {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED]
@@ -49,40 +84,37 @@ impl LintRule for NoIrregularWhitespace {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let file_range = context.text_info().range();
-    let mut check_range = |range: SourceRange| {
-      let whitespace_text = range.text_fast(context.text_info()).to_string();
-      for whitespace_matches in
-        test_for_whitespace(&whitespace_text).into_iter()
-      {
-        for whitespace_match in whitespace_matches {
-          let whitespace_range = whitespace_match.range();
-          let range = SourceRange::new(
-            range.start + whitespace_range.start,
-            range.start + whitespace_range.end,
-          );
-          context.add_diagnostic_with_hint(
-            range,
-            CODE,
-            NoIrregularWhitespaceMessage::NotAllowed,
-            HINT,
-          );
+    // Collect literal spans to exclude
+    let mut collector = LiteralSpanCollector::new();
+    collector.visit_program(program);
+
+    let source_text = context.source_text();
+
+    // Check entire source text for irregular whitespace
+    for whitespace_matches in test_for_whitespace(source_text).into_iter() {
+      for whitespace_match in whitespace_matches {
+        let start = whitespace_match.start() as u32;
+        let end = whitespace_match.end() as u32;
+
+        // Skip if inside a literal
+        if is_inside_literal(start, &collector.literal_spans) {
+          continue;
         }
+
+        let span = Span::new(start, end);
+        context.add_diagnostic_with_hint(
+          span,
+          CODE,
+          NoIrregularWhitespaceMessage::NotAllowed,
+          HINT,
+        );
       }
-    };
-    let mut last_end = file_range.start.as_source_pos();
-
-    for token in program.token_container().tokens {
-      check_range(SourceRange::new(last_end, token.start()));
-      last_end = token.end();
     }
-
-    check_range(SourceRange::new(last_end, file_range.end));
   }
 }
 

@@ -1,10 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  Class, ClassElement, Expression, MethodDefinitionKind, Program, Statement,
+};
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct ConstructorSuper;
@@ -22,12 +24,13 @@ impl LintRule for ConstructorSuper {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    ConstructorSuperHandler.traverse(program, context);
+    let mut handler = ConstructorSuperHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -63,63 +66,69 @@ impl DiagnosticKind {
   }
 }
 
-fn inherits_from_non_constructor(class: &ast_view::Class) -> bool {
-  matches!(&class.super_class, Some(ast_view::Expr::Lit(_)))
+fn is_literal_expression(expr: &Expression) -> bool {
+  matches!(
+    expr,
+    Expression::BooleanLiteral(_)
+      | Expression::NullLiteral(_)
+      | Expression::NumericLiteral(_)
+      | Expression::BigIntLiteral(_)
+      | Expression::RegExpLiteral(_)
+      | Expression::StringLiteral(_)
+      | Expression::TemplateLiteral(_)
+  )
 }
 
-fn super_call_ranges(constructor: &ast_view::Constructor) -> Vec<SourceRange> {
-  let mut ranges = Vec::new();
-  if let Some(block_stmt) = &constructor.body {
-    for stmt in block_stmt.stmts {
-      collect_super_ranges_in_stmt(stmt, &mut ranges);
+fn inherits_from_non_constructor(class: &Class) -> bool {
+  matches!(&class.super_class, Some(expr) if is_literal_expression(expr))
+}
+
+fn super_call_spans(
+  method_def: &deno_ast::oxc::ast::ast::MethodDefinition,
+) -> Vec<Span> {
+  let mut spans = Vec::new();
+  if let Some(body) = &method_def.value.body {
+    for stmt in &body.statements {
+      collect_super_spans_in_stmt(stmt, &mut spans);
     }
   }
-  ranges
+  spans
 }
 
-fn collect_super_ranges_in_stmt(
-  stmt: &ast_view::Stmt,
-  ranges: &mut Vec<SourceRange>,
-) {
-  if let ast_view::Stmt::Expr(expr) = stmt {
-    collect_super_ranges(expr.expr, ranges);
+fn collect_super_spans_in_stmt(stmt: &Statement, spans: &mut Vec<Span>) {
+  if let Statement::ExpressionStatement(expr_stmt) = stmt {
+    collect_super_spans(&expr_stmt.expression, spans);
   }
 }
 
-/// Collects the range of every `super()` call in `expr`.
-///
-/// `super()` may not be the whole expression: it can appear inside a
-/// comma/sequence expression, e.g. `super(), 0;` or `0, super();`. In those
-/// cases it is still called unconditionally, so the sequence is unwrapped, and
-/// each branch is inspected so `super(), super()` reports both calls.
-fn collect_super_ranges(expr: ast_view::Expr, ranges: &mut Vec<SourceRange>) {
+fn collect_super_spans(expr: &Expression, spans: &mut Vec<Span>) {
   match expr {
-    ast_view::Expr::Call(call)
-      if matches!(&call.callee, ast_view::Callee::Super(_)) =>
+    Expression::CallExpression(call)
+      if matches!(&call.callee, Expression::Super(_)) =>
     {
-      ranges.push(call.range());
+      spans.push(call.span);
     }
-    ast_view::Expr::Seq(seq) => {
-      for inner in seq.exprs {
-        collect_super_ranges(*inner, ranges);
+    Expression::SequenceExpression(seq) => {
+      for expr in &seq.expressions {
+        collect_super_spans(expr, spans);
       }
     }
     _ => {}
   }
 }
 
-fn return_before_super<'a, 'view>(
-  constructor: &'a ast_view::Constructor<'view>,
-) -> Option<&'a ast_view::ReturnStmt<'view>> {
-  if let Some(block_stmt) = &constructor.body {
-    for stmt in block_stmt.stmts {
-      let mut ranges = Vec::new();
-      collect_super_ranges_in_stmt(stmt, &mut ranges);
-      if !ranges.is_empty() {
+fn return_before_super<'a>(
+  method_def: &'a deno_ast::oxc::ast::ast::MethodDefinition<'a>,
+) -> Option<&'a deno_ast::oxc::ast::ast::ReturnStatement<'a>> {
+  if let Some(body) = &method_def.value.body {
+    for stmt in &body.statements {
+      let mut spans = Vec::new();
+      collect_super_spans_in_stmt(stmt, &mut spans);
+      if !spans.is_empty() {
         return None;
       }
 
-      if let ast_view::Stmt::Return(ret) = stmt {
+      if let Statement::ReturnStatement(ret) = stmt {
         return Some(ret);
       }
     }
@@ -128,21 +137,21 @@ fn return_before_super<'a, 'view>(
 }
 
 fn check_constructor(
-  cons: &ast_view::Constructor,
-  class: &ast_view::Class,
+  method_def: &deno_ast::oxc::ast::ast::MethodDefinition,
+  class: &Class,
   ctx: &mut Context,
 ) {
   // Declarations shouldn't be linted
-  if cons.body.is_none() {
+  if method_def.value.body.is_none() {
     return;
   }
 
   // returning value is a substitute of `super()`.
-  if let Some(ret) = return_before_super(cons) {
-    if ret.arg.is_none() && class.super_class.is_some() {
+  if let Some(ret) = return_before_super(method_def) {
+    if ret.argument.is_none() && class.super_class.is_some() {
       let kind = DiagnosticKind::NoSuper;
       ctx.add_diagnostic_with_hint(
-        cons.range(),
+        method_def.span,
         CODE,
         kind.message(),
         kind.hint(),
@@ -154,7 +163,7 @@ fn check_constructor(
   if inherits_from_non_constructor(class) {
     let kind = DiagnosticKind::UnnecessaryConstructor;
     ctx.add_diagnostic_with_hint(
-      cons.range(),
+      method_def.span,
       CODE,
       kind.message(),
       kind.hint(),
@@ -162,13 +171,13 @@ fn check_constructor(
     return;
   }
 
-  let super_calls = super_call_ranges(cons);
+  let super_calls = super_call_spans(method_def);
 
   // in case where there are more than one `super()` calls.
-  for exceeded_super_range in super_calls.iter().skip(1) {
+  for exceeded_super_span in super_calls.iter().skip(1) {
     let kind = DiagnosticKind::TooManySuper;
     ctx.add_diagnostic_with_hint(
-      *exceeded_super_range,
+      *exceeded_super_span,
       CODE,
       kind.message(),
       kind.hint(),
@@ -179,7 +188,7 @@ fn check_constructor(
     (true, true) => {
       let kind = DiagnosticKind::NoSuper;
       ctx.add_diagnostic_with_hint(
-        cons.range(),
+        method_def.span,
         CODE,
         kind.message(),
         kind.hint(),
@@ -200,11 +209,13 @@ fn check_constructor(
 
 struct ConstructorSuperHandler;
 
-impl Handler for ConstructorSuperHandler {
-  fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
-    for member in class.body {
-      if let ast_view::ClassMember::Constructor(cons) = member {
-        check_constructor(cons, class, ctx);
+impl Handler<'_> for ConstructorSuperHandler {
+  fn class(&mut self, class: &Class, ctx: &mut Context) {
+    for member in &class.body.body {
+      if let ClassElement::MethodDefinition(method_def) = member {
+        if method_def.kind == MethodDefinitionKind::Constructor {
+          check_constructor(method_def, class, ctx);
+        }
       }
     }
   }
@@ -239,9 +250,6 @@ mod tests {
       // "class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }",
       // "class A extends B { constructor() { try {} finally { super(); } } }",
       // "class A extends B { constructor() { if (a) throw Error(); super(); } }",
-
-      // https://github.com/denoland/deno_lint/issues/1490
-      // `super()` inside a comma/sequence expression is still called.
       "class A extends B { constructor() { super(), 0; } }",
       "class A extends B { constructor() { 0, super(); } }",
 
@@ -295,8 +303,6 @@ mod tests {
           hint: unnecessary_super_hint,
         }
       ],
-      // https://github.com/denoland/deno_lint/issues/1490
-      // `super()` in a sequence expression is unwrapped for all checks.
       "class A { constructor() { super(), 0; } }": [
         {
           col: 26,
@@ -388,8 +394,6 @@ mod tests {
           hint: too_many_super_hint,
         }
       ],
-      // Two `super()` calls within a single sequence expression are both
-      // counted, so the second is still reported as too many.
       "class A extends B { constructor() { super(), super(); } }": [
         {
           col: 45,

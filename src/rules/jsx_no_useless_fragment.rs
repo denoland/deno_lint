@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{JSXElement, JSXElementChild, JSXFragment};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{JSXChild, JSXElement, JSXFragment, Program};
 
 #[derive(Debug)]
 pub struct JSXNoUselessFragment;
@@ -21,12 +19,13 @@ impl LintRule for JSXNoUselessFragment {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXNoUselessFragmentHandler.traverse(program, context);
+    let mut handler = JSXNoUselessFragmentHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -35,25 +34,24 @@ const HINT: &str = "Remove this Fragment";
 
 struct JSXNoUselessFragmentHandler;
 
-impl Handler for JSXNoUselessFragmentHandler {
+impl Handler<'_> for JSXNoUselessFragmentHandler {
   // Check root fragments
   fn jsx_fragment(&mut self, node: &JSXFragment, ctx: &mut Context) {
     if node.children.is_empty() {
-      ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
     } else if node.children.len() == 1 {
-      if let Some(
-        JSXElementChild::JSXElement(_) | JSXElementChild::JSXFragment(_),
-      ) = &node.children.first()
+      if let Some(JSXChild::Element(_) | JSXChild::Fragment(_)) =
+        &node.children.first()
       {
-        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
       }
     }
   }
 
   fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
-    for child in node.children {
-      if let JSXElementChild::JSXFragment(frag) = child {
-        ctx.add_diagnostic_with_hint(frag.range(), CODE, MESSAGE, HINT);
+    for child in &node.children {
+      if let JSXChild::Fragment(frag) = child {
+        ctx.add_diagnostic_with_hint(frag.span, CODE, MESSAGE, HINT);
       }
     }
   }

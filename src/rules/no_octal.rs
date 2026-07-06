@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::Number;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{NumericLiteral, Program};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -25,25 +23,33 @@ impl LintRule for NoOctal {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoOctalHandler.traverse(program, context);
+    let mut handler = NoOctalHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoOctalHandler;
 
-impl Handler for NoOctalHandler {
-  fn number(&mut self, literal_num: &Number, ctx: &mut Context) {
+impl Handler<'_> for NoOctalHandler {
+  fn numeric_literal(
+    &mut self,
+    literal_num: &NumericLiteral,
+    ctx: &mut Context,
+  ) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
-    let raw_number = literal_num.text_fast(ctx.text_info());
+    let Some(ref raw) = literal_num.raw else {
+      return;
+    };
+    let raw_number = raw.as_str();
 
     if OCTAL.is_match(raw_number) {
-      ctx.add_diagnostic_with_hint(literal_num.range(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(literal_num.span, CODE, MESSAGE, HINT);
     }
   }
 }

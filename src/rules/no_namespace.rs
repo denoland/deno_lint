@@ -1,11 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, MediaType, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::MediaType;
 
 #[derive(Debug)]
 pub struct NoNamespace;
@@ -25,40 +24,93 @@ impl LintRule for NoNamespace {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     if matches!(context.media_type(), MediaType::Dts) {
       return;
     }
 
-    NoNamespaceHandler.traverse(program, context);
+    let mut visitor = NoNamespaceVisitor {
+      context,
+      ambient_depth: 0,
+      in_qualified_name_part: false,
+    };
+    visitor.visit_program(program);
   }
 }
 
-struct NoNamespaceHandler;
+struct NoNamespaceVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
+  /// Track how deep we are inside ambient (declare) contexts.
+  ambient_depth: u32,
+  /// True if we're currently traversing the inner part of a qualified name
+  /// like `Bar` in `namespace Foo.Bar {}`. The inner part should not report.
+  in_qualified_name_part: bool,
+}
 
-impl Handler for NoNamespaceHandler {
-  fn ts_module_decl(
+impl<'a> Visit<'a> for NoNamespaceVisitor<'_, 'a> {
+  fn visit_ts_global_declaration(
     &mut self,
-    module_decl: &ast_view::TsModuleDecl,
-    ctx: &mut Context,
+    global_decl: &TSGlobalDeclaration<'a>,
   ) {
-    fn inside_ambient_context(current_node: ast_view::Node) -> bool {
-      use deno_ast::view::Node::*;
-      match current_node {
-        TsModuleDecl(module_decl) if module_decl.declare() => true,
-        _ => match current_node.parent() {
-          Some(p) => inside_ambient_context(p),
-          None => false,
-        },
-      }
-    }
+    // `declare global {}` is always valid - it's a global augmentation.
+    // We increment ambient_depth so nested namespace declarations are allowed.
+    self.ambient_depth += 1;
+    walk::walk_ts_global_declaration(self, global_decl);
+    self.ambient_depth -= 1;
+  }
 
-    if !inside_ambient_context(module_decl.as_node()) {
-      ctx.add_diagnostic_with_hint(module_decl.range(), CODE, MESSAGE, HINT);
+  fn visit_ts_module_declaration(
+    &mut self,
+    module_decl: &TSModuleDeclaration<'a>,
+  ) {
+    let is_qualified_name_part = matches!(
+      &module_decl.body,
+      Some(TSModuleDeclarationBody::TSModuleDeclaration(_))
+    );
+
+    if module_decl.declare {
+      // This is a `declare module/namespace` - it's ambient, don't report it.
+      self.ambient_depth += 1;
+      walk::walk_ts_module_declaration(self, module_decl);
+      self.ambient_depth -= 1;
+    } else if self.in_qualified_name_part {
+      // This is an inner part of a qualified name (e.g., `Bar` in `Foo.Bar`).
+      // Don't report it, but DO walk the body normally (not as ambient).
+      if is_qualified_name_part {
+        // Still in qualified name (e.g., `Baz` in `Foo.Bar.Baz`)
+        walk::walk_ts_module_declaration(self, module_decl);
+      } else {
+        // End of qualified name - the body is a real block, walk normally
+        let prev = self.in_qualified_name_part;
+        self.in_qualified_name_part = false;
+        walk::walk_ts_module_declaration(self, module_decl);
+        self.in_qualified_name_part = prev;
+      }
+    } else if self.ambient_depth == 0 {
+      // Not inside any ambient context - this is a violation.
+      self.context.add_diagnostic_with_hint(
+        module_decl.span,
+        CODE,
+        MESSAGE,
+        HINT,
+      );
+      if is_qualified_name_part {
+        // OXC represents `namespace Foo.Bar {}` as nested `TSModuleDeclaration`
+        // nodes, but we only want to report the outermost one. Walk the inner
+        // qualified name parts without reporting.
+        self.in_qualified_name_part = true;
+        walk::walk_ts_module_declaration(self, module_decl);
+        self.in_qualified_name_part = false;
+      } else {
+        walk::walk_ts_module_declaration(self, module_decl);
+      }
+    } else {
+      // Inside an ambient context - this is fine, just walk.
+      walk::walk_ts_module_declaration(self, module_decl);
     }
   }
 }

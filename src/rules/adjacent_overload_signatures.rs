@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::swc_util::StringRepr;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 use std::collections::HashSet;
 
@@ -35,68 +36,61 @@ impl LintRule for AdjacentOverloadSignatures {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    AdjacentOverloadSignaturesHandler.traverse(program, context);
+    let mut handler = AdjacentOverloadSignaturesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct AdjacentOverloadSignaturesHandler;
 
-impl Handler for AdjacentOverloadSignaturesHandler {
-  fn script(&mut self, script: &ast_view::Script, ctx: &mut Context) {
-    check(script.body, ctx);
-  }
-
-  fn module(&mut self, module: &ast_view::Module, ctx: &mut Context) {
-    check(module.body, ctx);
+impl Handler<'_> for AdjacentOverloadSignaturesHandler {
+  fn program(&mut self, program: &Program, ctx: &mut Context) {
+    check_stmts(&program.body, ctx);
   }
 
   fn ts_module_block(
     &mut self,
-    ts_module_block: &ast_view::TsModuleBlock,
+    ts_module_block: &TSModuleBlock,
     ctx: &mut Context,
   ) {
-    check(ts_module_block.body, ctx);
+    check_stmts(&ts_module_block.body, ctx);
   }
 
-  fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
-    check(class.body, ctx);
-  }
-
-  fn ts_type_lit(
-    &mut self,
-    ts_type_lit: &ast_view::TsTypeLit,
-    ctx: &mut Context,
-  ) {
-    check(ts_type_lit.members, ctx);
+  fn class_body(&mut self, class_body: &ClassBody, ctx: &mut Context) {
+    check_class_body(class_body, ctx);
   }
 
   fn ts_interface_body(
     &mut self,
-    ts_interface_body: &ast_view::TsInterfaceBody,
+    ts_interface_body: &TSInterfaceBody,
     ctx: &mut Context,
   ) {
-    check(ts_interface_body.body, ctx);
+    check_ts_signatures(&ts_interface_body.body, ctx);
+  }
+
+  fn ts_type_literal(
+    &mut self,
+    ts_type_lit: &TSTypeLiteral,
+    ctx: &mut Context,
+  ) {
+    check_ts_signatures(&ts_type_lit.members, ctx);
   }
 }
 
-fn check<'a, T, U>(items: T, ctx: &'a mut Context)
-where
-  T: IntoIterator<Item = &'a U>,
-  U: ExtractMethod + SourceRanged + 'a,
-{
+fn check_stmts(stmts: &[Statement], ctx: &mut Context) {
   let mut seen_methods = HashSet::new();
   let mut last_method = None;
-  for item in items {
-    if let Some(method) = item.get_method() {
+  for stmt in stmts {
+    if let Some((method, span)) = extract_method_from_stmt(stmt) {
       if seen_methods.contains(&method) && last_method.as_ref() != Some(&method)
       {
         ctx.add_diagnostic_with_hint(
-          item.range(),
+          span,
           CODE,
           AdjacentOverloadSignaturesMessage::ShouldBeAdjacent(
             method.to_string(),
@@ -113,89 +107,117 @@ where
   }
 }
 
-fn extract_ident_from_decl(decl: &ast_view::Decl) -> Option<String> {
-  match decl {
-    ast_view::Decl::Fn(ast_view::FnDecl { ident, .. }) => {
-      Some(ident.sym().to_string())
+fn extract_method_from_stmt(stmt: &Statement) -> Option<(Method, Span)> {
+  match stmt {
+    Statement::FunctionDeclaration(func) => func
+      .id
+      .as_ref()
+      .map(|id| (Method::Method(id.name.to_string()), stmt.span())),
+    Statement::ExportNamedDeclaration(export_decl) => {
+      if let Some(Declaration::FunctionDeclaration(func)) =
+        &export_decl.declaration
+      {
+        func
+          .id
+          .as_ref()
+          .map(|id| (Method::Method(id.name.to_string()), stmt.span()))
+      } else {
+        None
+      }
     }
     _ => None,
   }
 }
 
-trait ExtractMethod {
-  fn get_method(&self) -> Option<Method>;
-}
-
-impl ExtractMethod for ast_view::ExportDecl<'_> {
-  fn get_method(&self) -> Option<Method> {
-    let method_name = extract_ident_from_decl(&self.decl);
-    method_name.map(Method::Method)
-  }
-}
-
-impl ExtractMethod for ast_view::Stmt<'_> {
-  fn get_method(&self) -> Option<Method> {
-    let method_name = match self {
-      ast_view::Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
-      _ => None,
-    };
-    method_name.map(Method::Method)
-  }
-}
-
-impl ExtractMethod for ast_view::ModuleItem<'_> {
-  fn get_method(&self) -> Option<Method> {
-    use deno_ast::view::{ModuleDecl, ModuleItem};
-    match self {
-      ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
-        export_decl.get_method()
+fn check_class_body(class_body: &ClassBody, ctx: &mut Context) {
+  let mut seen_methods = HashSet::new();
+  let mut last_method = None;
+  for element in &class_body.body {
+    if let Some((method, span)) = extract_method_from_class_element(element) {
+      if seen_methods.contains(&method) && last_method.as_ref() != Some(&method)
+      {
+        ctx.add_diagnostic_with_hint(
+          span,
+          CODE,
+          AdjacentOverloadSignaturesMessage::ShouldBeAdjacent(
+            method.to_string(),
+          ),
+          AdjacentOverloadSignaturesHint::GroupedTogether,
+        );
       }
-      ModuleItem::Stmt(stmt) => stmt.get_method(),
-      _ => None,
+
+      seen_methods.insert(method.clone());
+      last_method = Some(method);
+    } else {
+      last_method = None;
     }
   }
 }
 
-impl ExtractMethod for ast_view::ClassMember<'_> {
-  fn get_method(&self) -> Option<Method> {
-    use deno_ast::view::{ClassMember, ClassMethod};
-    match self {
-      ClassMember::Method(ClassMethod { inner, .. }) => {
-        inner.key.string_repr().map(|k| {
-          if inner.is_static {
-            Method::Static(k)
-          } else {
-            Method::Method(k)
-          }
-        })
+fn extract_method_from_class_element(
+  element: &ClassElement,
+) -> Option<(Method, Span)> {
+  match element {
+    ClassElement::MethodDefinition(method_def) => {
+      if method_def.kind == MethodDefinitionKind::Constructor {
+        return Some((
+          Method::Method("constructor".to_string()),
+          method_def.span,
+        ));
       }
-      ClassMember::Constructor(_) => {
-        Some(Method::Method("constructor".to_string()))
+      method_def.key.string_repr().map(|k| {
+        let method = if method_def.r#static {
+          Method::Static(k)
+        } else {
+          Method::Method(k)
+        };
+        (method, method_def.span)
+      })
+    }
+    _ => None,
+  }
+}
+
+fn check_ts_signatures(members: &[TSSignature], ctx: &mut Context) {
+  let mut seen_methods = HashSet::new();
+  let mut last_method = None;
+  for member in members {
+    if let Some((method, span)) = extract_method_from_ts_signature(member) {
+      if seen_methods.contains(&method) && last_method.as_ref() != Some(&method)
+      {
+        ctx.add_diagnostic_with_hint(
+          span,
+          CODE,
+          AdjacentOverloadSignaturesMessage::ShouldBeAdjacent(
+            method.to_string(),
+          ),
+          AdjacentOverloadSignaturesHint::GroupedTogether,
+        );
       }
-      _ => None,
+
+      seen_methods.insert(method.clone());
+      last_method = Some(method);
+    } else {
+      last_method = None;
     }
   }
 }
 
-impl ExtractMethod for ast_view::TsTypeElement<'_> {
-  fn get_method(&self) -> Option<Method> {
-    use deno_ast::view::{Expr, Lit, TsMethodSignature, TsTypeElement};
-    match self {
-      TsTypeElement::TsMethodSignature(TsMethodSignature {
-        ref key, ..
-      }) => match key {
-        Expr::Ident(ident) => Some(Method::Method(ident.sym().to_string())),
-        Expr::Lit(Lit::Str(s)) => {
-          Some(Method::Method(s.value().to_string_lossy().into_owned()))
-        }
-        _ => None,
-      },
-      TsTypeElement::TsCallSignatureDecl(_) => Some(Method::CallSignature),
-      TsTypeElement::TsConstructSignatureDecl(_) => {
-        Some(Method::ConstructSignature)
-      }
-      _ => None,
+fn extract_method_from_ts_signature(
+  member: &TSSignature,
+) -> Option<(Method, Span)> {
+  match member {
+    TSSignature::TSMethodSignature(method_sig) => {
+      let key_name = method_sig.key.string_repr()?;
+      Some((Method::Method(key_name), method_sig.span))
     }
+    TSSignature::TSCallSignatureDeclaration(call_sig) => {
+      Some((Method::CallSignature, call_sig.span))
+    }
+    TSSignature::TSConstructSignatureDeclaration(construct_sig) => {
+      Some((Method::ConstructSignature, construct_sig.span))
+    }
+    _ => None,
   }
 }
 

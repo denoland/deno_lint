@@ -1,18 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use crate::ProgramRef;
 use crate::{js_regex::*, tags};
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::ecma_visit::Visit;
-use deno_ast::swc::ecma_visit::VisitWith;
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoInvalidRegexp;
@@ -30,73 +23,67 @@ impl LintRule for NoInvalidRegexp {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoInvalidRegexpVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    let mut handler = NoInvalidRegexpHandler {
+      validator: EcmaRegexValidator::new(EcmaVersion::Es2022),
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {
-  if let Expr::Lit(deno_ast::swc::ast::Lit::Str(pattern_string)) = expr {
-    let s = pattern_string.value.to_string_lossy();
-    return Some(s.into_owned());
+fn check_expr_for_string_literal(arg: &Argument) -> Option<String> {
+  if let Argument::StringLiteral(s) = arg {
+    return Some(s.value.to_string());
   }
   None
 }
 
-struct NoInvalidRegexpVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct NoInvalidRegexpHandler {
   validator: EcmaRegexValidator,
 }
 
-impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self {
-      context,
-      validator: EcmaRegexValidator::new(EcmaVersion::Es2022),
-    }
-  }
-
+impl NoInvalidRegexpHandler {
   fn handle_call_or_new_expr(
     &mut self,
-    callee: &Expr,
-    args: &[ExprOrSpread],
-    range: SourceRange,
+    callee: &Expression,
+    args: &[Argument],
+    span: Span,
+    ctx: &mut Context,
   ) {
-    if let Expr::Ident(ident) = callee {
-      if ident.sym != *"RegExp" || args.is_empty() {
+    if let Expression::Identifier(ident) = callee {
+      if ident.name.as_str() != "RegExp" || args.is_empty() {
         return;
       }
-      if let Some(pattern) = &check_expr_for_string_literal(&args[0].expr) {
+      if let Some(pattern) = check_expr_for_string_literal(&args[0]) {
         if args.len() > 1 {
-          if let Some(flags) = &check_expr_for_string_literal(&args[1].expr) {
-            self.check_regex(pattern, flags, range);
+          if let Some(flags) = check_expr_for_string_literal(&args[1]) {
+            self.check_regex(&pattern, &flags, span, ctx);
             return;
           }
         }
-        self.check_regex(pattern, "", range);
+        self.check_regex(&pattern, "", span, ctx);
       }
     }
   }
 
-  fn check_regex(&mut self, pattern: &str, flags: &str, range: SourceRange) {
+  fn check_regex(
+    &mut self,
+    pattern: &str,
+    flags: &str,
+    span: Span,
+    ctx: &mut Context,
+  ) {
     if self.check_for_invalid_flags(flags)
       || (!flags.is_empty()
         && self.check_for_invalid_pattern(pattern, flags.contains('u')))
       || (self.check_for_invalid_pattern(pattern, true)
         && self.check_for_invalid_pattern(pattern, false))
     {
-      self
-        .context
-        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 
@@ -109,31 +96,54 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
   }
 }
 
-impl Visit for NoInvalidRegexpVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_regex(&mut self, regex: &deno_ast::swc::ast::Regex) {
-    self.check_regex(&regex.exp, &regex.flags, regex.range());
+impl Handler<'_> for NoInvalidRegexpHandler {
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
+    let pattern = regex.regex.pattern.text.as_str();
+    let mut flags = String::new();
+    let f = regex.regex.flags;
+    if f.contains(RegExpFlags::G) {
+      flags.push('g');
+    }
+    if f.contains(RegExpFlags::I) {
+      flags.push('i');
+    }
+    if f.contains(RegExpFlags::M) {
+      flags.push('m');
+    }
+    if f.contains(RegExpFlags::S) {
+      flags.push('s');
+    }
+    if f.contains(RegExpFlags::U) {
+      flags.push('u');
+    }
+    if f.contains(RegExpFlags::Y) {
+      flags.push('y');
+    }
+    if f.contains(RegExpFlags::D) {
+      flags.push('d');
+    }
+    if f.contains(RegExpFlags::V) {
+      flags.push('v');
+    }
+    self.check_regex(pattern, &flags, regex.span, ctx);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &deno_ast::swc::ast::CallExpr) {
-    if let deno_ast::swc::ast::Callee::Expr(expr) = &call_expr.callee {
-      self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
-    }
-    // Recurse so regexes nested in the callee or arguments (e.g. inside an
-    // immediately-invoked function expression) are still checked.
-    call_expr.visit_children_with(self);
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
+    self.handle_call_or_new_expr(
+      &call_expr.callee,
+      &call_expr.arguments,
+      call_expr.span,
+      ctx,
+    );
   }
 
-  fn visit_new_expr(&mut self, new_expr: &deno_ast::swc::ast::NewExpr) {
-    if new_expr.args.is_some() {
-      self.handle_call_or_new_expr(
-        &new_expr.callee,
-        new_expr.args.as_ref().unwrap(),
-        new_expr.range(),
-      );
-    }
-    new_expr.visit_children_with(self);
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
+    self.handle_call_or_new_expr(
+      &new_expr.callee,
+      &new_expr.arguments,
+      new_expr.span,
+      ctx,
+    );
   }
 }
 
@@ -194,16 +204,12 @@ let re = new RegExp('foo', x);",
       r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
-      // https://github.com/denoland/deno_lint/issues/1269
-      // Regexes nested inside a call expression (e.g. an immediately-invoked
-      // function expression) must still be checked.
       r#"(() => new RegExp("("))();"#: [{ col: 7, message: MESSAGE, hint: HINT }],
       r#"((_) => [/+/, RegExp(")")])([new RegExp("[")]);"#: [
         { col: 9, message: MESSAGE, hint: HINT },
         { col: 14, message: MESSAGE, hint: HINT },
         { col: 29, message: MESSAGE, hint: HINT },
       ],
-      // A regex passed as a plain function argument is also checked.
       r#"foo(/+/);"#: [{ col: 4, message: MESSAGE, hint: HINT }],
     }
   }

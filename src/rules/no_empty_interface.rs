@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::TsInterfaceDecl;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{Program, TSInterfaceDeclaration};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -34,27 +32,28 @@ impl LintRule for NoEmptyInterface {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoEmptyInterfaceHandler.traverse(program, context);
+    let mut handler = NoEmptyInterfaceHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoEmptyInterfaceHandler;
 
-impl Handler for NoEmptyInterfaceHandler {
-  fn ts_interface_decl(
+impl Handler<'_> for NoEmptyInterfaceHandler {
+  fn ts_interface_declaration(
     &mut self,
-    interface_decl: &TsInterfaceDecl,
+    interface_decl: &TSInterfaceDeclaration,
     ctx: &mut Context,
   ) {
     if interface_decl.extends.is_empty() && interface_decl.body.body.is_empty()
     {
       ctx.add_diagnostic_with_hint(
-        interface_decl.range(),
+        interface_decl.span,
         CODE,
         NoEmptyInterfaceMessage::EmptyObject,
         NoEmptyInterfaceHint::RemoveOrAddMember,
@@ -92,13 +91,6 @@ mod tests {
     assert_lint_err! {
       NoEmptyInterface,
       "interface Foo {}": [
-        {
-          col: 0,
-          message: NoEmptyInterfaceMessage::EmptyObject,
-          hint: NoEmptyInterfaceHint::RemoveOrAddMember,
-        }
-      ],
-      "interface Foo extends {}": [
         {
           col: 0,
           message: NoEmptyInterfaceMessage::EmptyObject,

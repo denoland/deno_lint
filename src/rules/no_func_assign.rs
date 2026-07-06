@@ -1,12 +1,15 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::swc_util::find_lhs_ids;
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::AssignExpr;
-use deno_ast::{BindingKind, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  ArrayAssignmentTarget, AssignmentExpression, AssignmentTarget,
+  AssignmentTargetMaybeDefault, AssignmentTargetProperty,
+  ObjectAssignmentTarget, Program,
+};
+use deno_ast::oxc::span::Span;
+use deno_ast::BindingKind;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -37,34 +40,110 @@ impl LintRule for NoFuncAssign {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoFuncAssignVisitor.traverse(program, context);
+    let mut handler = NoFuncAssignVisitor;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoFuncAssignVisitor;
 
-impl Handler for NoFuncAssignVisitor {
-  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
-    let ids = find_lhs_ids(&assign_expr.left);
+fn check_target(target: &AssignmentTarget, span: Span, ctx: &mut Context) {
+  match target {
+    AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+      if let Some(BindingKind::Function) = ctx.binding_kind_of_ident_ref(ident)
+      {
+        ctx.add_diagnostic_with_hint(
+          span,
+          CODE,
+          NoFuncAssignMessage::Unexpected,
+          NoFuncAssignHint::RemoveOrRework,
+        );
+      }
+    }
+    AssignmentTarget::ArrayAssignmentTarget(arr) => {
+      check_array_target(arr, span, ctx);
+    }
+    AssignmentTarget::ObjectAssignmentTarget(obj) => {
+      check_object_target(obj, span, ctx);
+    }
+    _ => {}
+  }
+}
 
-    for id in ids {
-      let var = ctx.scope().var(&id);
-      if let Some(var) = var {
-        if let BindingKind::Function = var.kind() {
+fn check_array_target(
+  arr: &ArrayAssignmentTarget,
+  span: Span,
+  ctx: &mut Context,
+) {
+  for elem in arr.elements.iter().flatten() {
+    match elem {
+      AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_def) => {
+        check_target(&with_def.binding, span, ctx);
+      }
+      _ => {
+        if let Some(target) = elem.as_assignment_target() {
+          check_target(target, span, ctx);
+        }
+      }
+    }
+  }
+  if let Some(rest) = &arr.rest {
+    check_target(&rest.target, span, ctx);
+  }
+}
+
+fn check_object_target(
+  obj: &ObjectAssignmentTarget,
+  span: Span,
+  ctx: &mut Context,
+) {
+  for prop in obj.properties.iter() {
+    match prop {
+      AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(ident) => {
+        if let Some(BindingKind::Function) =
+          ctx.binding_kind_of_ident_ref(&ident.binding)
+        {
           ctx.add_diagnostic_with_hint(
-            assign_expr.range(),
+            span,
             CODE,
             NoFuncAssignMessage::Unexpected,
             NoFuncAssignHint::RemoveOrRework,
           );
         }
       }
+      AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv) => {
+        match &kv.binding {
+          AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+            with_def,
+          ) => {
+            check_target(&with_def.binding, span, ctx);
+          }
+          _ => {
+            if let Some(target) = kv.binding.as_assignment_target() {
+              check_target(target, span, ctx);
+            }
+          }
+        }
+      }
     }
+  }
+  if let Some(rest) = &obj.rest {
+    check_target(&rest.target, span, ctx);
+  }
+}
+
+impl Handler<'_> for NoFuncAssignVisitor {
+  fn assignment_expression(
+    &mut self,
+    assign_expr: &AssignmentExpression,
+    ctx: &mut Context,
+  ) {
+    check_target(&assign_expr.left, assign_expr.span, ctx);
   }
 }
 

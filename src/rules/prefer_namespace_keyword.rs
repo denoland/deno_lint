@@ -1,13 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{TsModuleDecl, TsModuleName};
-use deno_ast::SourceRanged;
-use once_cell::sync::Lazy;
-use regex::Regex;
+use deno_ast::oxc::ast::ast::{
+  Program, TSModuleDeclaration, TSModuleDeclarationKind,
+  TSModuleDeclarationName,
+};
 
 #[derive(Debug)]
 pub struct PreferNamespaceKeyword;
@@ -24,31 +23,29 @@ impl LintRule for PreferNamespaceKeyword {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    PreferNamespaceKeywordHandler.traverse(program, context);
+    let mut handler = PreferNamespaceKeywordHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct PreferNamespaceKeywordHandler;
 
-impl Handler for PreferNamespaceKeywordHandler {
-  fn ts_module_decl(&mut self, mod_decl: &TsModuleDecl, ctx: &mut Context) {
-    if let TsModuleName::Str(_) = &mod_decl.id {
+impl Handler<'_> for PreferNamespaceKeywordHandler {
+  fn ts_module_declaration(
+    &mut self,
+    mod_decl: &TSModuleDeclaration,
+    ctx: &mut Context,
+  ) {
+    if let TSModuleDeclarationName::StringLiteral(_) = &mod_decl.id {
       return;
     }
-    static KEYWORD: Lazy<Regex> =
-      Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
-
-    let snippet = mod_decl.text_fast(ctx.text_info());
-    if let Some(capt) = KEYWORD.captures(snippet) {
-      let keyword = capt.name("keyword").unwrap().as_str();
-      if keyword == "module" && !mod_decl.global() {
-        ctx.add_diagnostic(mod_decl.range(), CODE, MESSAGE)
-      }
+    if mod_decl.kind == TSModuleDeclarationKind::Module {
+      ctx.add_diagnostic(mod_decl.span, CODE, MESSAGE)
     }
   }
 }

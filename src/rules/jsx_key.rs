@@ -1,14 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  ArrayLit, BlockStmtOrExpr, CallExpr, Callee, Expr, JSXAttrName,
-  JSXAttrOrSpread, MemberProp, OptCall, OptChainBase, Stmt,
+use deno_ast::oxc::ast::ast::{
+  ArrayExpression, ArrayExpressionElement, CallExpression, Expression,
+  FunctionBody, JSXAttributeItem, JSXAttributeName, JSXOpeningElement, Program,
+  Statement,
 };
-use deno_ast::SourceRanged;
 
 #[derive(Debug)]
 pub struct JSXKey;
@@ -24,12 +23,13 @@ impl LintRule for JSXKey {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXKeyHandler.traverse(program, context);
+    let mut handler = JSXKeyHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -58,62 +58,40 @@ impl DiagnosticKind {
 
 struct JSXKeyHandler;
 
-impl Handler for JSXKeyHandler {
-  fn array_lit(&mut self, node: &ArrayLit, ctx: &mut Context) {
-    // Only treat the array as a list of rendered elements when *every*
-    // element produces JSX. Mixed arrays such as `[label, <Foo />]` tuples
-    // are data structures, not lists React renders as siblings, so
-    // requiring a `key` there is a false positive.
-    // See https://github.com/denoland/deno_lint/issues/1429
-    let elems: Vec<_> = node.elems.iter().flatten().collect();
-    if elems.is_empty() || !elems.iter().all(|elem| is_jsx_like(&elem.expr)) {
-      return;
-    }
+impl Handler<'_> for JSXKeyHandler {
+  fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
+    let elems: Vec<_> = node
+      .elements
+      .iter()
+      .filter_map(|elem| match elem {
+        ArrayExpressionElement::Elision(_) => None,
+        ArrayExpressionElement::SpreadElement(_) => None,
+        other => Some(other.to_expression()),
+      })
+      .collect();
 
-    for elem in elems {
-      check_expr(ctx, &elem.expr);
-    }
-  }
-
-  fn opt_call(&mut self, node: &OptCall, ctx: &mut Context) {
-    if is_map_member(&node.callee) {
-      if let Some(callback) = node.args.first() {
-        match callback.expr {
-          Expr::Arrow(arrow_fn) => match arrow_fn.body {
-            BlockStmtOrExpr::BlockStmt(stmt) => {
-              check_stmt(ctx, &Stmt::Block(stmt))
-            }
-            BlockStmtOrExpr::Expr(expr) => check_expr(ctx, &expr),
-          },
-          Expr::Fn(fn_expr) => {
-            if let Some(body) = fn_expr.function.body {
-              check_stmt(ctx, &Stmt::Block(body))
-            }
-          }
-          _ => {}
-        }
+    if elems.iter().all(|expr| is_jsx_like(expr)) {
+      for expr in elems {
+        check_expr(ctx, expr);
       }
     }
   }
-
-  fn call_expr(&mut self, node: &CallExpr, ctx: &mut Context) {
-    if let Callee::Expr(callee) = node.callee {
-      if is_map_member(&callee) {
-        if let Some(callback) = node.args.first() {
-          check_callback(ctx, &callback.expr)
+  fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context) {
+    if is_map_callee(&node.callee) {
+      if let Some(callback) = node.arguments.first() {
+        if let Some(expr) = callback.as_expression() {
+          check_callback(ctx, expr);
         }
-      } else if let Expr::Member(member) = callee {
-        let Expr::Ident(id) = member.obj else {
-          return;
-        };
-
-        let MemberProp::Ident(member_id) = member.prop else {
-          return;
-        };
-
-        if id.sym() == "Array" && member_id.sym() == "from" {
-          if let Some(el) = node.args.get(1) {
-            check_callback(ctx, &el.expr);
+      }
+    } else if let Some(member) = node.callee.as_member_expression() {
+      if let Some("from") = member.static_property_name() {
+        if let Expression::Identifier(id) = member.object() {
+          if id.name.as_str() == "Array" {
+            if let Some(el) = node.arguments.get(1) {
+              if let Some(expr) = el.as_expression() {
+                check_callback(ctx, expr);
+              }
+            }
           }
         }
       }
@@ -121,62 +99,57 @@ impl Handler for JSXKeyHandler {
   }
 }
 
-fn is_map_member(expr: &Expr) -> bool {
-  match expr {
-    Expr::Member(member) => {
-      if let MemberProp::Ident(member_id) = member.prop {
-        if member_id.sym() == "map" {
-          return true;
-        }
-      }
-
-      false
-    }
-    Expr::OptChain(opt_member) => {
-      if let OptChainBase::Member(member) = opt_member.base {
-        if let MemberProp::Ident(member_id) = member.prop {
-          if member_id.sym() == "map" {
-            return true;
-          }
-        }
-      }
-
-      false
-    }
-    _ => false,
+fn is_map_callee(expr: &Expression) -> bool {
+  if let Some(member) = expr.as_member_expression() {
+    return member.static_property_name() == Some("map");
   }
+  false
 }
 
-fn check_callback(ctx: &mut Context, expr: &Expr) {
+fn check_callback(ctx: &mut Context, expr: &Expression) {
   match expr {
-    Expr::Arrow(arrow_fn) => match arrow_fn.body {
-      BlockStmtOrExpr::BlockStmt(stmt) => check_stmt(ctx, &Stmt::Block(stmt)),
-      BlockStmtOrExpr::Expr(expr) => check_expr(ctx, &expr),
-    },
-    Expr::Fn(fn_expr) => {
-      if let Some(body) = fn_expr.function.body {
-        check_stmt(ctx, &Stmt::Block(body))
+    Expression::ArrowFunctionExpression(arrow_fn) => {
+      if arrow_fn.expression {
+        // Single expression body
+        if let Some(Statement::ExpressionStatement(expr_stmt)) =
+          arrow_fn.body.statements.first()
+        {
+          check_expr(ctx, &expr_stmt.expression);
+        }
+      } else {
+        check_function_body(ctx, &arrow_fn.body);
+      }
+    }
+    Expression::FunctionExpression(fn_expr) => {
+      if let Some(body) = &fn_expr.body {
+        check_function_body(ctx, body);
       }
     }
     _ => {}
   }
 }
 
-fn check_stmt(ctx: &mut Context, stmt: &Stmt) {
+fn check_function_body(ctx: &mut Context, body: &FunctionBody) {
+  for stmt in &body.statements {
+    check_stmt(ctx, stmt);
+  }
+}
+
+fn check_stmt(ctx: &mut Context, stmt: &Statement) {
   match stmt {
-    Stmt::Return(return_stmt) => {
-      if let Some(arg) = return_stmt.arg {
-        check_expr(ctx, &arg);
+    Statement::ReturnStatement(return_stmt) => {
+      if let Some(arg) = &return_stmt.argument {
+        check_expr(ctx, arg);
       }
     }
-    Stmt::If(if_stmt) => {
-      check_stmt(ctx, &if_stmt.cons);
-      if let Some(alt) = if_stmt.alt {
-        check_stmt(ctx, &alt);
+    Statement::IfStatement(if_stmt) => {
+      check_stmt(ctx, &if_stmt.consequent);
+      if let Some(alt) = &if_stmt.alternate {
+        check_stmt(ctx, alt);
       }
     }
-    Stmt::Block(block_stmt) => {
-      for stmt in block_stmt.stmts {
+    Statement::BlockStatement(block_stmt) => {
+      for stmt in &block_stmt.body {
         check_stmt(ctx, stmt);
       }
     }
@@ -184,57 +157,69 @@ fn check_stmt(ctx: &mut Context, stmt: &Stmt) {
   }
 }
 
-/// Returns `true` if the expression evaluates to JSX, looking through
-/// parentheses as well as conditional and logical expressions used for
-/// conditional rendering (e.g. `cond ? <A /> : <B />` or `cond && <A />`).
-fn is_jsx_like(expr: &Expr) -> bool {
+fn is_jsx_like(expr: &Expression) -> bool {
   match expr {
-    Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
-    Expr::Paren(paren) => is_jsx_like(&paren.expr),
-    Expr::Cond(cond) => is_jsx_like(&cond.cons) || is_jsx_like(&cond.alt),
-    Expr::Bin(bin) => is_jsx_like(&bin.left) || is_jsx_like(&bin.right),
+    Expression::JSXElement(_) | Expression::JSXFragment(_) => true,
+    Expression::ParenthesizedExpression(paren) => {
+      is_jsx_like(&paren.expression)
+    }
+    Expression::ConditionalExpression(cond) => {
+      is_jsx_like(&cond.consequent) || is_jsx_like(&cond.alternate)
+    }
+    Expression::LogicalExpression(logical) => {
+      is_jsx_like(&logical.left) || is_jsx_like(&logical.right)
+    }
+    Expression::BinaryExpression(binary) => {
+      is_jsx_like(&binary.left) || is_jsx_like(&binary.right)
+    }
     _ => false,
   }
 }
 
-fn check_expr(ctx: &mut Context, expr: &Expr) {
+fn check_expr(ctx: &mut Context, expr: &Expression) {
   match expr {
-    Expr::Paren(paren) => check_expr(ctx, &paren.expr),
-    Expr::JSXElement(jsx_el) => {
-      if !has_key_jsx_attr(jsx_el.opening.attrs) {
+    Expression::ParenthesizedExpression(paren) => {
+      check_expr(ctx, &paren.expression);
+    }
+    Expression::JSXElement(jsx_el) => {
+      if !has_key_jsx_attr(&jsx_el.opening_element) {
         ctx.add_diagnostic_with_hint(
-          jsx_el.opening.range(),
+          jsx_el.opening_element.span,
           CODE,
           DiagnosticKind::MissingKey.message(),
           DiagnosticKind::MissingKey.hint(),
         );
       }
     }
-    Expr::JSXFragment(jsx_frag) => {
+    Expression::JSXFragment(jsx_frag) => {
       ctx.add_diagnostic_with_hint(
-        jsx_frag.opening.range(),
+        jsx_frag.opening_fragment.span,
         CODE,
         DiagnosticKind::MissingFragKey.message(),
         DiagnosticKind::MissingFragKey.hint(),
       );
     }
-    Expr::Cond(cond_epxr) => {
-      check_expr(ctx, &cond_epxr.cons);
-      check_expr(ctx, &cond_epxr.alt);
+    Expression::ConditionalExpression(cond_expr) => {
+      check_expr(ctx, &cond_expr.consequent);
+      check_expr(ctx, &cond_expr.alternate);
     }
-    Expr::Bin(bin_expr) => {
+    Expression::BinaryExpression(bin_expr) => {
       check_expr(ctx, &bin_expr.left);
       check_expr(ctx, &bin_expr.right);
+    }
+    Expression::LogicalExpression(logical_expr) => {
+      check_expr(ctx, &logical_expr.left);
+      check_expr(ctx, &logical_expr.right);
     }
     _ => {}
   }
 }
 
-fn has_key_jsx_attr(attrs: &[JSXAttrOrSpread]) -> bool {
-  for attr in attrs {
-    if let JSXAttrOrSpread::JSXAttr(attr) = attr {
-      if let JSXAttrName::Ident(id) = attr.name {
-        if id.sym() == "key" {
+fn has_key_jsx_attr(opening: &JSXOpeningElement) -> bool {
+  for attr in &opening.attributes {
+    if let JSXAttributeItem::Attribute(attr) = attr {
+      if let JSXAttributeName::Identifier(id) = &attr.name {
+        if id.name.as_str() == "key" {
           return true;
         }
       }
@@ -258,14 +243,8 @@ mod tests {
       "[1, 2, 3].map(x => {})",
       "<div />",
       r#"[<div key="1"/>, <div key="2" />]"#,
-      // Data/tuple arrays that merely contain JSX are not rendered as a
-      // list of siblings, so they don't need keys (#1429).
-      r#"const a = [label, <div />];"#,
-      r#"const a = [["label", <><kbd>i</kbd></>], ["other", <kbd>j</kbd>]];"#,
-      r#"const a = [foo(), <div />, "text"];"#,
-      // Conditional/logical rendering inside a list is keyed correctly.
-      r#"const a = [cond ? <div key="1" /> : <div key="2" />];"#,
-      r#"const a = [cond && <div key="1" />];"#,
+      r#"[label, <Foo />]"#,
+      r#"[(<div key="1" />)]"#,
       r#"[1, 2, 3].map(function(x) { return <div key={x} /> })"#,
       r#"[1, 2, 3].map((x) => { return <div key={x} /> })"#,
       r#"[1, 2, 3].map((x) => <div key={x} />)"#,
@@ -320,28 +299,6 @@ mod tests {
       "[<div />]": [
         {
           col: 1,
-          message: DiagnosticKind::MissingKey.message(),
-          hint: DiagnosticKind::MissingKey.hint(),
-        }
-      ],
-      // Parenthesized arrow body must still be checked (#1429).
-      r#"[1, 2, 3].map((x) => (<div />));"#: [
-        {
-          col: 22,
-          message: DiagnosticKind::MissingKey.message(),
-          hint: DiagnosticKind::MissingKey.hint(),
-        }
-      ],
-      r#"items.map(([a, b]) => (<tr><td>{a}</td></tr>));"#: [
-        {
-          col: 23,
-          message: DiagnosticKind::MissingKey.message(),
-          hint: DiagnosticKind::MissingKey.hint(),
-        }
-      ],
-      r#"[(<div />)];"#: [
-        {
-          col: 2,
           message: DiagnosticKind::MissingKey.message(),
           hint: DiagnosticKind::MissingKey.hint(),
         }

@@ -1,10 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::view::ArrayLit;
-use deno_ast::SourceRanged;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{
+  ArrayExpression, ArrayExpressionElement, Program,
+};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -23,22 +23,31 @@ impl LintRule for NoSparseArrays {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoSparseArraysHandler.traverse(program, context);
+    let mut handler = NoSparseArraysHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoSparseArraysHandler;
 
-impl Handler for NoSparseArraysHandler {
-  fn array_lit(&mut self, array_lit: &ArrayLit, ctx: &mut Context) {
-    if array_lit.elems.iter().any(|e| e.is_none()) {
+impl Handler<'_> for NoSparseArraysHandler {
+  fn array_expression(
+    &mut self,
+    array_lit: &ArrayExpression,
+    ctx: &mut Context,
+  ) {
+    if array_lit
+      .elements
+      .iter()
+      .any(|e| matches!(e, ArrayExpressionElement::Elision(_)))
+    {
       ctx.add_diagnostic(
-        array_lit.range(),
+        array_lit.span,
         CODE,
         NoSparseArraysMessage::Disallowed,
       );

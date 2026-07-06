@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct NoAwaitInSyncFn;
@@ -23,45 +21,67 @@ impl LintRule for NoAwaitInSyncFn {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoAwaitInSyncFnHandler.traverse(program, context);
+    let mut handler = NoAwaitInSyncFnHandler {
+      is_async_stack: vec![],
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoAwaitInSyncFnHandler;
+struct NoAwaitInSyncFnHandler {
+  /// Stack tracking whether each function scope is async.
+  is_async_stack: Vec<bool>,
+}
 
-impl Handler for NoAwaitInSyncFnHandler {
-  fn await_expr(
+impl Handler<'_> for NoAwaitInSyncFnHandler {
+  fn function(&mut self, function: &Function, _ctx: &mut Context) {
+    match function.r#type {
+      FunctionType::FunctionDeclaration | FunctionType::FunctionExpression => {}
+      _ => return,
+    }
+    self.is_async_stack.push(function.r#async);
+  }
+
+  fn function_exit(&mut self, function: &Function, _ctx: &mut Context) {
+    match function.r#type {
+      FunctionType::FunctionDeclaration | FunctionType::FunctionExpression => {}
+      _ => return,
+    }
+    self.is_async_stack.pop();
+  }
+
+  fn arrow_function_expression(
     &mut self,
-    await_expr: &ast_view::AwaitExpr,
+    arrow: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    self.is_async_stack.push(arrow.r#async);
+  }
+
+  fn arrow_function_expression_exit(
+    &mut self,
+    _arrow: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    self.is_async_stack.pop();
+  }
+
+  fn await_expression(
+    &mut self,
+    await_expr: &AwaitExpression,
     ctx: &mut Context,
   ) {
-    fn inside_sync_fn(node: ast_view::Node) -> bool {
-      use deno_ast::view::Node::*;
-      match node {
-        FnDecl(decl) => !decl.function.is_async(),
-        FnExpr(decl) => !decl.function.is_async(),
-        ArrowExpr(decl) => !decl.is_async(),
-        MethodProp(decl) => !decl.function.is_async(),
-        ClassMethod(decl) => !decl.function.is_async(),
-        PrivateMethod(decl) => !decl.function.is_async(),
-        _ => {
-          let parent = match node.parent() {
-            Some(p) => p,
-            None => return false,
-          };
-          inside_sync_fn(parent)
-        }
+    if let Some(&is_async) = self.is_async_stack.last() {
+      if !is_async {
+        ctx.add_diagnostic_with_hint(await_expr.span, CODE, MESSAGE, HINT);
       }
     }
-
-    if inside_sync_fn(await_expr.as_node()) {
-      ctx.add_diagnostic_with_hint(await_expr.range(), CODE, MESSAGE, HINT);
-    }
+    // If stack is empty, we're at top-level; top-level await is fine.
   }
 }
 

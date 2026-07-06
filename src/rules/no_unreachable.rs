@@ -1,18 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::Context;
 use super::LintRule;
+use crate::handler::Handler;
 use crate::tags;
 use crate::tags::Tags;
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::Decl;
-use deno_ast::swc::ast::Stmt;
-use deno_ast::swc::ast::VarDeclKind;
-use deno_ast::swc::ecma_visit::Visit;
-use deno_ast::swc::ecma_visit::VisitWith;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoUnreachable;
@@ -29,56 +24,95 @@ impl LintRule for NoUnreachable {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoUnreachableVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
+    let mut handler = NoUnreachableHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
+  }
+}
+
+struct NoUnreachableHandler;
+
+fn check_unreachable(span: Span, ctx: &mut Context) {
+  if let Some(meta) = ctx.control_flow().meta(span.start) {
+    if meta.unreachable {
+      ctx.add_diagnostic(span, CODE, MESSAGE);
     }
   }
 }
 
-struct NoUnreachableVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
-
-impl<'c, 'view> NoUnreachableVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
+/// Check a statement for unreachability, skipping those that should be ignored
+/// (block statements, function declarations, type declarations, and var
+/// declarations without initializers).
+fn check_statement(stmt: &Statement, ctx: &mut Context) {
+  match stmt {
+    // Don't print unused error for block statements
+    Statement::BlockStatement(_) => {}
+    // Hoisted, so reachable.
+    Statement::FunctionDeclaration(_) => {}
+    // Ignore type declarations.
+    Statement::TSInterfaceDeclaration(_) => {}
+    Statement::TSTypeAliasDeclaration(_) => {}
+    Statement::TSModuleDeclaration(_) => {}
+    Statement::VariableDeclaration(decl)
+      if decl.kind == VariableDeclarationKind::Var
+        && decl.declarations.iter().all(|d| d.init.is_none()) => {}
+    _ => {
+      check_unreachable(stmt.span(), ctx);
+    }
   }
 }
 
-impl Visit for NoUnreachableVisitor<'_, '_> {
-  fn visit_stmt(&mut self, stmt: &Stmt) {
-    stmt.visit_children_with(self);
-
-    match stmt {
-      // Don't print unused error for block statements
-      Stmt::Block(_) => return,
-      // Hoisted, so reachable.
-      Stmt::Decl(Decl::Fn(..)) => return,
-      // Ignore type declarations.
-      Stmt::Decl(Decl::TsInterface(..)) => return,
-      Stmt::Decl(Decl::TsTypeAlias(..)) => return,
-      Stmt::Decl(Decl::TsModule(..)) => return,
-      Stmt::Decl(Decl::Var(decl))
-        if decl.kind == VarDeclKind::Var
-          && decl.decls.iter().all(|decl| decl.init.is_none()) =>
-      {
-        return;
-      }
-      _ => {}
+impl Handler<'_> for NoUnreachableHandler {
+  // We need to check every statement for unreachability.
+  // The handler fires for each specific statement type,
+  // but we need to intercept at the block/body level to check
+  // each statement in sequence.
+  //
+  // We hook into program, block_statement, switch_case, and other containers
+  // that hold statements.
+  fn program(&mut self, n: &Program, ctx: &mut Context) {
+    for stmt in &n.body {
+      check_statement(stmt, ctx);
     }
+  }
 
-    if let Some(meta) = self.context.control_flow().meta(stmt.start()) {
-      if meta.unreachable {
-        self.context.add_diagnostic(stmt.range(), CODE, MESSAGE)
+  fn block_statement(&mut self, n: &BlockStatement, ctx: &mut Context) {
+    for stmt in &n.body {
+      check_statement(stmt, ctx);
+    }
+  }
+
+  fn switch_case(&mut self, n: &SwitchCase, ctx: &mut Context) {
+    for stmt in &n.consequent {
+      check_statement(stmt, ctx);
+    }
+  }
+
+  fn function(&mut self, n: &Function, ctx: &mut Context) {
+    if let Some(body) = &n.body {
+      for stmt in &body.statements {
+        check_statement(stmt, ctx);
       }
+    }
+  }
+
+  fn arrow_function_expression(
+    &mut self,
+    n: &ArrowFunctionExpression,
+    ctx: &mut Context,
+  ) {
+    for stmt in &n.body.statements {
+      check_statement(stmt, ctx);
+    }
+  }
+
+  fn static_block(&mut self, n: &StaticBlock, ctx: &mut Context) {
+    for stmt in &n.body {
+      check_statement(stmt, ctx);
     }
   }
 }

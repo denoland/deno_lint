@@ -1,10 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::{
-  tags::{self, Tags},
-  Program,
-};
+use crate::tags::{self, Tags};
+use deno_ast::oxc::ast::ast::Program;
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
@@ -20,10 +18,10 @@ impl LintRule for BanUnusedIgnore {
     "ban-unused-ignore"
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    _context: &mut Context,
-    _program: Program<'_>,
+    _context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
     // noop
   }

@@ -1,11 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::view::ImportDecl;
-use deno_ast::{ModuleSpecifier, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::ModuleSpecifier;
 use derive_more::Display;
 use std::ffi::OsStr;
 
@@ -35,13 +34,13 @@ impl LintRule for NoExternalImport {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     let mut handler = NoExternalImportHandler;
-    handler.traverse(program, context);
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -49,16 +48,12 @@ impl LintRule for NoExternalImport {
 struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
-  fn check_import_path(&self, decl: &ImportDecl, ctx: &mut Context) {
-    let Ok(parsed_src) =
-      ModuleSpecifier::parse(&decl.src.value().to_string_lossy())
+  fn check_import_path(&self, decl: &ImportDeclaration, ctx: &mut Context) {
+    let Ok(parsed_src) = ModuleSpecifier::parse(decl.source.value.as_str())
     else {
       return;
     };
 
-    // `node:` and `bun:` specifiers are runtime built-ins, not external
-    // resources, so they are always allowed.
-    // https://github.com/denoland/deno_lint/issues/1366
     if matches!(parsed_src.scheme(), "node" | "bun") {
       return;
     }
@@ -71,7 +66,7 @@ impl NoExternalImportHandler {
 
     if file_stem != Some("deps") {
       ctx.add_diagnostic_with_hint(
-        decl.range(),
+        decl.span,
         CODE,
         NoExternalImportMessage::Unexpected,
         NoExternalImportHint::CreateDependencyFile,
@@ -80,10 +75,10 @@ impl NoExternalImportHandler {
   }
 }
 
-impl Handler for NoExternalImportHandler {
-  fn import_decl(
+impl Handler<'_> for NoExternalImportHandler {
+  fn import_declaration(
     &mut self,
-    decl: &deno_ast::view::ImportDecl,
+    decl: &ImportDeclaration,
     ctx: &mut Context,
   ) {
     self.check_import_path(decl, ctx);
@@ -106,8 +101,6 @@ mod tests {
       "import * as Foo from './deps.ts';",
       "import './deps.ts';",
       "const foo = await import('https://example.com');",
-      // https://github.com/denoland/deno_lint/issues/1366
-      // node: and bun: specifiers are built-ins, not external resources.
       "import { readFile } from 'node:fs/promises';",
       "import process from 'node:process';",
       "import { Database } from 'bun:sqlite';"

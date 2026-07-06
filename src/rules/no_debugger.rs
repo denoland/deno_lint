@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::DebuggerStmt;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{DebuggerStatement, Program};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -34,21 +32,26 @@ impl LintRule for NoDebugger {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoDebuggerHandler.traverse(program, context);
+    let mut handler = NoDebuggerHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoDebuggerHandler;
 
-impl Handler for NoDebuggerHandler {
-  fn debugger_stmt(&mut self, debugger_stmt: &DebuggerStmt, ctx: &mut Context) {
+impl Handler<'_> for NoDebuggerHandler {
+  fn debugger_statement(
+    &mut self,
+    debugger_stmt: &DebuggerStatement,
+    ctx: &mut Context,
+  ) {
     ctx.add_diagnostic_with_hint(
-      debugger_stmt.range(),
+      debugger_stmt.span,
       CODE,
       NoDebuggerMessage::Unexpected,
       NoDebuggerHint::Remove,

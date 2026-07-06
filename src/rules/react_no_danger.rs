@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{JSXAttr, JSXAttrName};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{JSXAttribute, JSXAttributeName, Program};
 
 #[derive(Debug)]
 pub struct ReactNoDanger;
@@ -21,12 +19,13 @@ impl LintRule for ReactNoDanger {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoDangerHandler.traverse(program, context);
+    let mut handler = NoDangerHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -35,11 +34,11 @@ const HINT: &str = "Remove this attribute";
 
 struct NoDangerHandler;
 
-impl Handler for NoDangerHandler {
-  fn jsx_attr(&mut self, node: &JSXAttr, ctx: &mut Context) {
-    if let JSXAttrName::Ident(name) = node.name {
-      if name.sym() == "dangerouslySetInnerHTML" {
-        ctx.add_diagnostic_with_hint(name.range(), CODE, MESSAGE, HINT);
+impl Handler<'_> for NoDangerHandler {
+  fn jsx_attribute(&mut self, node: &JSXAttribute, ctx: &mut Context) {
+    if let JSXAttributeName::Identifier(name) = &node.name {
+      if name.name == "dangerouslySetInnerHTML" {
+        ctx.add_diagnostic_with_hint(name.span, CODE, MESSAGE, HINT);
       }
     }
   }

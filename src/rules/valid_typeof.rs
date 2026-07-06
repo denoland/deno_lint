@@ -1,18 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::handler::Handler;
 use crate::swc_util::StringRepr;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::BinExpr;
-use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use deno_ast::swc::ast::Expr::{Ident, Lit, Tpl, Unary};
-use deno_ast::swc::ast::Lit::Str;
-use deno_ast::swc::ast::UnaryOp::TypeOf;
-use deno_ast::swc::ecma_visit::{noop_visit_type, Visit};
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::GetSpan;
 
 #[derive(Debug)]
 pub struct ValidTypeof;
@@ -29,17 +22,13 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = ValidTypeofVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    let mut handler = ValidTypeofHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 
   fn priority(&self) -> u32 {
@@ -47,58 +36,65 @@ impl LintRule for ValidTypeof {
   }
 }
 
-struct ValidTypeofVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct ValidTypeofHandler;
 
-impl<'c, 'view> ValidTypeofVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl Visit for ValidTypeofVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_bin_expr(&mut self, bin_expr: &BinExpr) {
-    if !bin_expr.is_eq_expr() {
+impl Handler<'_> for ValidTypeofHandler {
+  fn binary_expression(
+    &mut self,
+    bin_expr: &BinaryExpression,
+    ctx: &mut Context,
+  ) {
+    if !matches!(
+      bin_expr.operator,
+      BinaryOperator::Equality
+        | BinaryOperator::Inequality
+        | BinaryOperator::StrictEquality
+        | BinaryOperator::StrictInequality
+    ) {
       return;
     }
 
-    match (&*bin_expr.left, &*bin_expr.right) {
-      (Unary(unary), operand) | (operand, Unary(unary))
-        if unary.op == TypeOf =>
+    let (typeof_expr, operand) = match (&bin_expr.left, &bin_expr.right) {
+      (Expression::UnaryExpression(unary), operand)
+        if unary.operator == UnaryOperator::Typeof =>
       {
-        match operand {
-          Unary(unary) if unary.op == TypeOf => {}
-          Lit(Str(str)) => {
-            if !is_valid_typeof_string(&str.value.to_string_lossy()) {
-              self.context.add_diagnostic(str.range(), CODE, MESSAGE);
-            }
-          }
-          Tpl(tpl) => {
-            if tpl
-              .string_repr()
-              .is_some_and(|s| !is_valid_typeof_string(&s))
-            {
-              self.context.add_diagnostic(tpl.range(), CODE, MESSAGE);
-            }
-          }
-          // The bare `undefined` keyword is almost always a mistake here (it
-          // should be the string `"undefined"`), so keep flagging it.
-          Ident(ident) if ident.sym == *"undefined" => {
-            self.context.add_diagnostic(ident.range(), CODE, MESSAGE);
-          }
-          // A non-string literal (number, boolean, `null`, ...) can never be a
-          // valid `typeof` result.
-          Lit(lit) => {
-            self.context.add_diagnostic(lit.range(), CODE, MESSAGE);
-          }
-          // Comparing against a variable or other expression is allowed;
-          // TypeScript already checks the value.
-          // https://github.com/denoland/deno_lint/issues/1375
-          _ => {}
+        (unary, operand)
+      }
+      (operand, Expression::UnaryExpression(unary))
+        if unary.operator == UnaryOperator::Typeof =>
+      {
+        (unary, operand)
+      }
+      _ => return,
+    };
+
+    let _ = typeof_expr;
+
+    match operand {
+      Expression::UnaryExpression(unary)
+        if unary.operator == UnaryOperator::Typeof => {}
+      Expression::StringLiteral(str_lit) => {
+        if !is_valid_typeof_string(str_lit.value.as_str()) {
+          ctx.add_diagnostic(str_lit.span, CODE, MESSAGE);
         }
+      }
+      Expression::TemplateLiteral(tpl) => {
+        if tpl
+          .string_repr()
+          .is_some_and(|s| !is_valid_typeof_string(&s))
+        {
+          ctx.add_diagnostic(tpl.span, CODE, MESSAGE);
+        }
+      }
+      Expression::Identifier(ident) if ident.name.as_str() == "undefined" => {
+        ctx.add_diagnostic(ident.span, CODE, MESSAGE);
+      }
+      Expression::BooleanLiteral(_)
+      | Expression::NullLiteral(_)
+      | Expression::NumericLiteral(_)
+      | Expression::BigIntLiteral(_)
+      | Expression::RegExpLiteral(_) => {
+        ctx.add_diagnostic(operand.span(), CODE, MESSAGE);
       }
       _ => {}
     }
@@ -117,16 +113,6 @@ fn is_valid_typeof_string(str: &str) -> bool {
       | "symbol"
       | "bigint"
   )
-}
-
-trait EqExpr {
-  fn is_eq_expr(&self) -> bool;
-}
-
-impl EqExpr for BinExpr {
-  fn is_eq_expr(&self) -> bool {
-    matches!(self.op, EqEq | NotEq | EqEqEq | NotEqEq)
-  }
 }
 
 #[cfg(test)]
@@ -166,9 +152,6 @@ mod tests {
       r#"typeof foo !== `bigint`"#,
 
       r#"typeof bar != typeof qux"#,
-
-      // https://github.com/denoland/deno_lint/issues/1375
-      // Comparing against a variable or other expression is allowed.
       r#"const type = "string"; typeof foo === type"#,
       r#"typeof bar == Object"#,
       r#"typeof baz === anotherVariable"#,
@@ -197,12 +180,10 @@ mod tests {
         col: 15,
         message: MESSAGE
       }],
-      // The bare `undefined` keyword is still flagged (likely a mistake).
       r#"typeof foo === undefined"#: [{
         col: 15,
         message: MESSAGE
       }],
-      // Non-string literals can never be a valid `typeof` result.
       r#"typeof foo === null"#: [{
         col: 15,
         message: MESSAGE

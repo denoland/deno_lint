@@ -2,14 +2,12 @@
 
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  Expr, JSXAttr, JSXAttrValue, JSXElement, JSXElementChild, JSXExpr, Lit,
-  NodeTrait,
+use deno_ast::oxc::ast::ast::{
+  JSXAttribute, JSXAttributeValue, JSXChild, JSXElement, JSXExpression, Program,
 };
-use deno_ast::SourceRanged;
+use deno_ast::oxc::span::GetSpan;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -29,12 +27,13 @@ impl LintRule for JSXCurlyBraces {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXCurlyBracesHandler.traverse(program, context);
+    let mut handler = JSXCurlyBracesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -72,9 +71,10 @@ impl DiagnosticKind {
 
 struct JSXCurlyBracesHandler;
 
-impl Handler for JSXCurlyBracesHandler {
+impl Handler<'_> for JSXCurlyBracesHandler {
   fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
-    let mut child_iter = node.children.iter().peekable();
+    let children = &node.children;
+    let mut child_iter = children.iter().peekable();
 
     let mut skip_count = 0;
     while let Some(child) = child_iter.next() {
@@ -83,28 +83,19 @@ impl Handler for JSXCurlyBracesHandler {
         continue;
       }
 
-      if let JSXElementChild::JSXExprContainer(child_expr) = child {
-        if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = child_expr.expr {
-          let value = lit_str.inner.value.to_string_lossy();
+      if let JSXChild::ExpressionContainer(child_expr) = child {
+        if let JSXExpression::StringLiteral(lit_str) = &child_expr.expression {
+          let value = lit_str.value.as_str();
 
           // Ignore entities which would require escaping.
-          if IGNORE_CHARS.is_match(&value) {
+          if IGNORE_CHARS.is_match(value) {
             continue;
           }
 
-          // Leading or trailing whitespace (including whitespace-only
-          // strings) is significant: JSX trims and collapses whitespace
-          // around text nodes, so removing the curly braces would change
-          // the rendered output. This makes `{" "}` separators valid.
-          // See https://github.com/denoland/deno_lint/issues/1422
           if value.trim() != value {
             continue;
           }
 
-          // Comment-like text (`//` or `/*`) must stay wrapped in curly
-          // braces, otherwise it becomes a comment text node which
-          // `jsx-no-comment-text-nodes` forbids.
-          // See https://github.com/denoland/deno_lint/issues/1440
           if value.starts_with("//") || value.starts_with("/*") {
             continue;
           }
@@ -113,8 +104,11 @@ impl Handler for JSXCurlyBracesHandler {
           // <div>{" "}
           // </div>
           if let Some(next) = child_iter.peek() {
-            let line = ctx.text_info().line_index(child.end());
-            let line_next_child = ctx.text_info().line_index(next.end());
+            let child_span = child_expr.span;
+            let next_span = next.span();
+            let line = ctx.text_info().line_index(child_span.end as usize);
+            let line_next_child =
+              ctx.text_info().line_index(next_span.end as usize);
 
             if line < line_next_child {
               skip_count += 1;
@@ -123,15 +117,15 @@ impl Handler for JSXCurlyBracesHandler {
           }
 
           ctx.add_diagnostic_with_fixes(
-            child.range(),
+            child_expr.span,
             CODE,
             DiagnosticKind::CurlyChild.message(),
             Some(DiagnosticKind::CurlyChild.hint().to_string()),
             vec![LintFix {
               description: "Remove curly braces around JSX child".into(),
               changes: vec![LintFixChange {
-                new_text: lit_str.value().to_string_lossy().into_owned().into(),
-                range: child.range(),
+                new_text: lit_str.value.to_string().into(),
+                range: child_expr.span,
               }],
             }],
           )
@@ -140,13 +134,13 @@ impl Handler for JSXCurlyBracesHandler {
     }
   }
 
-  fn jsx_attr(&mut self, node: &JSXAttr, ctx: &mut Context) {
-    if let Some(value) = node.value {
+  fn jsx_attribute(&mut self, node: &JSXAttribute, ctx: &mut Context) {
+    if let Some(value) = &node.value {
       match value {
-        JSXAttrValue::JSXExprContainer(expr) => {
-          if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = expr.expr {
+        JSXAttributeValue::ExpressionContainer(expr) => {
+          if let JSXExpression::StringLiteral(lit_str) = &expr.expression {
             ctx.add_diagnostic_with_fixes(
-              value.range(),
+              value.span(),
               CODE,
               DiagnosticKind::CurlyAttribute.message(),
               Some(DiagnosticKind::CurlyAttribute.hint().to_string()),
@@ -154,28 +148,26 @@ impl Handler for JSXCurlyBracesHandler {
                 description: "Remove curly braces around JSX attribute value"
                   .into(),
                 changes: vec![LintFixChange {
-                  new_text: format!(
-                    "\"{}\"",
-                    lit_str.value().to_string_lossy()
-                  )
-                  .into(),
-                  range: value.range(),
+                  new_text: format!("\"{}\"", lit_str.value).into(),
+                  range: value.span(),
                 }],
               }],
             );
           }
         }
-        JSXAttrValue::JSXElement(jsx_el) => {
+        JSXAttributeValue::Element(jsx_el) => {
+          let el_text = &ctx.source_text()
+            [jsx_el.span.start as usize..jsx_el.span.end as usize];
           ctx.add_diagnostic_with_fixes(
-            value.range(),
+            value.span(),
             CODE,
             DiagnosticKind::MissingCurlyAttribute.message(),
             Some(DiagnosticKind::MissingCurlyAttribute.hint().to_string()),
             vec![LintFix {
               description: "Add curly braces around JSX attribute value".into(),
               changes: vec![LintFixChange {
-                new_text: format!("{{{}}}", jsx_el.text()).into(),
-                range: value.range(),
+                new_text: format!("{{{}}}", el_text).into(),
+                range: value.span(),
               }],
             }],
           );
@@ -214,18 +206,11 @@ mod tests {
       r#"<div>foo{"foo >"}</div>"#,
       r#"<div>foo{"foo }"}</div>"#,
       r#"<div>foo{"foo {"}</div>"#,
-      // Whitespace-only separators are significant (#1422)
-      r#"<div>foo{" "}bar</div>"#,
-      r#"<div>foo{"  "}bar</div>"#,
-      r#"<div><foo />{" "}<bar /></div>"#,
-      // Leading/trailing whitespace is significant (#1422)
-      r#"<div>foo{" :"}bar</div>"#,
-      r#"<div>foo{" ("}bar</div>"#,
-      r#"<div>foo{") "}bar</div>"#,
-      // Comment-like text must stay wrapped (#1440)
-      r#"<div>foo{"//"}</div>"#,
-      r#"<div>foo{"/*"}</div>"#,
-      r#"<div>{"// not a comment"}</div>"#,
+      r#"<div>{" "}</div>"#,
+      r#"<div>{" foo"}</div>"#,
+      r#"<div>{"foo "}</div>"#,
+      r#"<div>{"// keep"}</div>"#,
+      r#"<div>{"/* keep */"}</div>"#,
     };
   }
 

@@ -1,12 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::swc_util::find_lhs_ids;
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::AssignExpr;
-use deno_ast::{BindingKind, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  AssignmentExpression, AssignmentTarget, AssignmentTargetMaybeDefault,
+  AssignmentTargetProperty, IdentifierReference, Program,
+};
+use deno_ast::BindingKind;
 
 #[derive(Debug)]
 pub struct NoClassAssign;
@@ -24,32 +25,84 @@ impl LintRule for NoClassAssign {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoClassAssignVisitor.traverse(program, context);
+    let mut handler = NoClassAssignVisitor;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoClassAssignVisitor;
 
-impl Handler for NoClassAssignVisitor {
-  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
-    let ids = find_lhs_ids(&assign_expr.left);
-    for id in ids {
-      let var = ctx.scope().var(&id);
-      if let Some(var) = var {
-        if let BindingKind::Class = var.kind() {
-          ctx.add_diagnostic_with_hint(
-            assign_expr.range(),
-            CODE,
-            MESSAGE,
-            HINT,
-          );
+fn collect_target_ident_refs<'a>(
+  target: &'a AssignmentTarget<'a>,
+  refs: &mut Vec<&'a IdentifierReference<'a>>,
+) {
+  match target {
+    AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+      refs.push(ident);
+    }
+    AssignmentTarget::ArrayAssignmentTarget(array) => {
+      for elem in array.elements.iter().flatten() {
+        collect_maybe_default_ident_refs(elem, refs);
+      }
+      if let Some(rest) = &array.rest {
+        collect_target_ident_refs(&rest.target, refs);
+      }
+    }
+    AssignmentTarget::ObjectAssignmentTarget(object) => {
+      for prop in &object.properties {
+        match prop {
+          AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
+            refs.push(&p.binding);
+          }
+          AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
+            collect_maybe_default_ident_refs(&p.binding, refs);
+          }
         }
       }
+      if let Some(rest) = &object.rest {
+        collect_target_ident_refs(&rest.target, refs);
+      }
+    }
+    _ => {}
+  }
+}
+
+fn collect_maybe_default_ident_refs<'a>(
+  target: &'a AssignmentTargetMaybeDefault<'a>,
+  refs: &mut Vec<&'a IdentifierReference<'a>>,
+) {
+  match target {
+    AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
+      collect_target_ident_refs(&d.binding, refs);
+    }
+    AssignmentTargetMaybeDefault::AssignmentTargetIdentifier(ident) => {
+      refs.push(ident);
+    }
+    _ => {}
+  }
+}
+
+impl Handler<'_> for NoClassAssignVisitor {
+  fn assignment_expression(
+    &mut self,
+    assign_expr: &AssignmentExpression,
+    ctx: &mut Context,
+  ) {
+    let mut refs = Vec::new();
+    collect_target_ident_refs(&assign_expr.left, &mut refs);
+    let should_report = refs.iter().any(|ident_ref| {
+      matches!(
+        ctx.binding_kind_of_ident_ref(ident_ref),
+        Some(BindingKind::Class)
+      )
+    });
+    if should_report {
+      ctx.add_diagnostic_with_hint(assign_expr.span, CODE, MESSAGE, HINT);
     }
   }
 }

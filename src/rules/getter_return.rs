@@ -1,22 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr,
-  ExprOrSpread, FnDecl, FnExpr, GetterProp, MemberExpr, MemberProp, MethodKind,
-  MethodProp, ObjectLit, OptCall, OptChainBase, PrivateMethod, Prop, PropName,
-  PropOrSpread, ReturnStmt,
-};
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::ecma_visit::Visit;
-use deno_ast::swc::ecma_visit::VisitWith;
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::span::{GetSpan, Span};
 use derive_more::Display;
 use std::collections::BTreeMap;
 
@@ -48,27 +37,23 @@ impl LintRule for GetterReturn {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
     let mut visitor = GetterReturnVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    visitor.visit_program(program);
     visitor.report();
   }
 }
 
 struct GetterReturnVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  errors: BTreeMap<SourceRange, GetterReturnMessage>,
+  errors: BTreeMap<Span, GetterReturnMessage>,
   /// If this visitor is currently in a getter, its name is stored.
   getter_name: Option<String>,
-  // `true` if a getter contains as least one return statement.
+  // `true` if a getter contains at least one return statement.
   has_return: bool,
 }
 
@@ -83,9 +68,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
   }
 
   fn report(&mut self) {
-    for (range, msg) in &self.errors {
+    for (span, msg) in &self.errors {
       self.context.add_diagnostic_with_hint(
-        *range,
+        *span,
         CODE,
         msg,
         GetterReturnHint::Return,
@@ -93,9 +78,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     }
   }
 
-  fn report_expected(&mut self, range: SourceRange) {
+  fn report_expected(&mut self, span: Span) {
     self.errors.insert(
-      range,
+      span,
       GetterReturnMessage::Expected(
         self
           .getter_name
@@ -105,9 +90,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     );
   }
 
-  fn report_always_expected(&mut self, range: SourceRange) {
+  fn report_always_expected(&mut self, span: Span) {
     self.errors.insert(
-      range,
+      span,
       GetterReturnMessage::ExpectedAlways(
         self
           .getter_name
@@ -117,26 +102,23 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     );
   }
 
-  fn check_getter(
-    &mut self,
-    getter_body_range: SourceRange,
-    getter_range: SourceRange,
-  ) {
+  fn check_getter(&mut self, getter_body_span: Span, getter_span: Span) {
     if self.getter_name.is_none() {
       return;
     }
 
-    if self
-      .context
-      .control_flow()
-      .meta(getter_body_range.start)
-      .unwrap()
-      .continues_execution()
-    {
+    let continues =
+      match self.context.control_flow().meta(getter_body_span.start) {
+        Some(meta) => meta.continues_execution(),
+        // No entry in control flow means the scope had no explicit termination
+        // tracked (e.g. empty function body), so execution continues.
+        None => true,
+      };
+    if continues {
       if self.has_return {
-        self.report_always_expected(getter_range);
+        self.report_always_expected(getter_span);
       } else {
-        self.report_expected(getter_range);
+        self.report_expected(getter_span);
       }
     }
   }
@@ -156,208 +138,213 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
   {
     let prev_name = self.getter_name.take();
     let prev_has_return = self.has_return;
+    self.has_return = false;
     op(self);
     self.getter_name = prev_name;
     self.has_return = prev_has_return;
   }
 
-  fn check_callee_expr<F>(&mut self, expr: &Expr, op: F)
+  fn check_callee_expr<F>(&mut self, expr: &Expression, op: F)
   where
-    F: FnOnce(&mut Self, &MemberExpr),
+    F: FnOnce(&mut Self, &StaticMemberExpression),
   {
     match expr {
-      Expr::Paren(paren) => {
-        self.check_callee_expr(&paren.expr, op);
+      Expression::ParenthesizedExpression(paren) => {
+        self.check_callee_expr(&paren.expression, op);
       }
-      Expr::Member(member) => {
+      Expression::StaticMemberExpression(member) => {
         op(self, member);
       }
-      Expr::OptChain(opt) => {
-        if let OptChainBase::Member(member) = &*opt.base {
+      Expression::ChainExpression(chain) => {
+        // Handle optional chaining like `Object?.defineProperty`
+        if let ChainElement::StaticMemberExpression(member) = &chain.expression
+        {
           op(self, member);
         }
       }
+      Expression::ComputedMemberExpression(_) => {}
+      Expression::PrivateFieldExpression(_) => {}
       _ => {}
     }
   }
 
-  fn check_obj_method_getter_return(&mut self, obj_expr: &ObjectLit) {
-    for prop in obj_expr.props.iter() {
-      if let PropOrSpread::Prop(prop_expr) = prop {
-        if let Prop::KeyValue(kv_prop) = &**prop_expr {
-          if let Expr::Object(obj_expr) = &*kv_prop.value {
-            // e.g. Object.create(foo, { bar: { get: function() {} } })
-            self.check_obj_method_getter_return(obj_expr);
+  fn check_obj_method_getter_return(
+    &mut self,
+    obj_expr: &ObjectExpression<'view>,
+  ) {
+    for prop in &obj_expr.properties {
+      let ObjectPropertyKind::ObjectProperty(prop_expr) = prop else {
+        continue;
+      };
+
+      // Check for nested objects
+      if let Expression::ObjectExpression(obj_expr) = &prop_expr.value {
+        self.check_obj_method_getter_return(obj_expr);
+        continue;
+      }
+
+      let Some(key_name) = prop_expr.key.string_repr() else {
+        continue;
+      };
+      if key_name != "get" {
+        continue;
+      }
+
+      if prop_expr.method {
+        // e.g. Object.defineProperty(foo, 'bar', { get() {} })
+        if let Expression::FunctionExpression(fn_expr) = &prop_expr.value {
+          if fn_expr.generator {
             continue;
           }
-
-          // e.g. Object.defineProperty(foo, 'bar', { get: function() {} })
-          if let PropName::Ident(ident) = &kv_prop.key {
-            if ident.sym != *"get" {
+          let fn_span = fn_expr.span;
+          self.visit_getter_or_function(|a| {
+            a.set_getter_name(&prop_expr.key);
+            if let Some(body) = &fn_expr.body {
+              walk::walk_function_body(a, body);
+              a.check_getter(fn_span, prop.span());
+            }
+          });
+        }
+      } else {
+        // e.g. Object.defineProperty(foo, 'bar', { get: function() {} })
+        match &prop_expr.value {
+          Expression::FunctionExpression(fn_expr) => {
+            if fn_expr.generator {
               continue;
             }
+            let fn_span = fn_expr.span;
             self.visit_getter_or_function(|a| {
-              // function
-              if let Expr::Fn(fn_expr) = &*kv_prop.value {
-                if fn_expr.function.is_generator {
-                  return;
-                }
-                a.set_getter_name(&fn_expr.ident);
-                if let Some(body) = &fn_expr.function.body {
-                  body.visit_children_with(a);
-                  a.check_getter(body.range(), prop.range());
-                }
-                // arrow function
-              } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
+              if let Some(id) = &fn_expr.id {
+                a.getter_name = Some(id.name.to_string());
+              } else {
                 a.set_default_getter_name();
-                if let BlockStmtOrExpr::BlockStmt(block_stmt) =
-                  &*arrow_expr.body
-                {
-                  block_stmt.visit_children_with(a);
-                  a.check_getter(block_stmt.range(), prop.range());
-                }
+              }
+              if let Some(body) = &fn_expr.body {
+                walk::walk_function_body(a, body);
+                a.check_getter(fn_span, prop.span());
               }
             });
           }
-        } else if let Prop::Method(method_prop) = &**prop_expr {
-          if method_prop.function.is_generator {
-            return;
-          }
-          // e.g. Object.defineProperty(foo, 'bar', { get() {} })
-          if let PropName::Ident(ident) = &method_prop.key {
-            if ident.sym != *"get" {
+          Expression::ArrowFunctionExpression(arrow_expr) => {
+            // If arrow has expression body, it always returns
+            if arrow_expr.expression {
               continue;
             }
+            let arrow_span = arrow_expr.span;
             self.visit_getter_or_function(|a| {
-              a.set_getter_name(&method_prop.key);
-              if let Some(body) = &method_prop.function.body {
-                body.visit_children_with(a);
-                a.check_getter(body.range(), prop.range());
-              }
+              a.set_default_getter_name();
+              walk::walk_function_body(a, &arrow_expr.body);
+              a.check_getter(arrow_span, prop.span());
             });
           }
+          _ => {}
         }
       }
     }
   }
 
-  fn check_call_expr(&mut self, callee_expr: &Expr, args: &[ExprOrSpread]) {
+  fn check_call_expr(
+    &mut self,
+    callee_expr: &Expression<'view>,
+    args: &[Argument<'view>],
+  ) {
     if !(matches!(args.len(), 2 | 3)) {
       return;
     }
 
     self.check_callee_expr(callee_expr, |visitor, member_expr| {
-      if let Expr::Ident(ident) = &*member_expr.obj {
-        if !(matches!(ident.sym.as_ref(), "Object" | "Reflect")) {
+      if let Expression::Identifier(ident) = &member_expr.object {
+        if !(matches!(ident.name.as_str(), "Object" | "Reflect")) {
           return;
         }
 
-        if let MemberProp::Ident(ident) = &member_expr.prop {
-          if !(matches!(
-            ident.sym.as_ref(),
-            "create" | "defineProperty" | "defineProperties"
-          )) {
-            return;
-          }
+        if !(matches!(
+          member_expr.property.name.as_str(),
+          "create" | "defineProperty" | "defineProperties"
+        )) {
+          return;
         }
+      } else {
+        return;
       }
 
-      if let Expr::Object(obj_expr) = &*args[args.len() - 1].expr {
+      if let Argument::ObjectExpression(obj_expr) = &args[args.len() - 1] {
         visitor.check_obj_method_getter_return(obj_expr)
       }
     });
   }
 }
 
-impl Visit for GetterReturnVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
-    // `self.has_return` should be reset because return statements inside the `fn_decl` don't have
-    // effect on outside of it
+impl<'a> Visit<'a> for GetterReturnVisitor<'_, 'a> {
+  fn visit_function(
+    &mut self,
+    func: &Function<'a>,
+    flags: deno_ast::oxc::syntax::scope::ScopeFlags,
+  ) {
+    // `self.has_return` should be reset because return statements inside
+    // don't have effect on outside of it
     self.visit_getter_or_function(|a| {
-      fn_decl.visit_children_with(a);
+      walk::walk_function(a, func, flags);
     });
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr) {
-    // `self.has_return` should be reset because return statements inside the `fn_expr` don't have
-    // effect on outside of it
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow_expr: &ArrowFunctionExpression<'a>,
+  ) {
+    // `self.has_return` should be reset because return statements inside
+    // don't have effect on outside of it
     self.visit_getter_or_function(|a| {
-      fn_expr.visit_children_with(a);
+      walk::walk_arrow_function_expression(a, arrow_expr);
     });
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
-    // `self.has_return` should be reset because return statements inside the `arrow_expr` don't
-    // have effect on outside of it
-    self.visit_getter_or_function(|a| {
-      arrow_expr.visit_children_with(a);
-    });
+  fn visit_method_definition(&mut self, method_def: &MethodDefinition<'a>) {
+    if method_def.kind == MethodDefinitionKind::Get {
+      let fn_span = method_def.value.span;
+      let method_span = method_def.span;
+      self.visit_getter_or_function(|a| {
+        a.set_getter_name(&method_def.key);
+        if let Some(body) = &method_def.value.body {
+          walk::walk_function_body(a, body);
+        }
+        a.check_getter(fn_span, method_span);
+      });
+    } else {
+      walk::walk_method_definition(self, method_def);
+    }
   }
 
-  fn visit_method_prop(&mut self, method_prop: &MethodProp) {
-    // `self.has_return` should be reset because return statements inside the `method_prop` don't
-    // have effect on outside of it
-    self.visit_getter_or_function(|a| {
-      method_prop.visit_children_with(a);
-    });
-  }
-  fn visit_class_method(&mut self, class_method: &ClassMethod) {
-    self.visit_getter_or_function(|a| {
-      if class_method.kind == MethodKind::Getter {
-        a.set_getter_name(&class_method.key);
+  fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
+    if prop.kind == PropertyKind::Get {
+      if let Expression::FunctionExpression(func) = &prop.value {
+        let prop_span = prop.span;
+        let fn_span = func.span;
+        self.visit_getter_or_function(|a| {
+          a.set_getter_name(&prop.key);
+          if let Some(body) = &func.body {
+            walk::walk_function_body(a, body);
+          }
+          a.check_getter(fn_span, prop_span);
+        });
+      } else {
+        walk::walk_object_property(self, prop);
       }
-      class_method.visit_children_with(a);
-
-      if let Some(body) = &class_method.function.body {
-        a.check_getter(body.range(), class_method.range());
-      }
-    });
+    } else {
+      walk::walk_object_property(self, prop);
+    }
   }
 
-  fn visit_private_method(&mut self, private_method: &PrivateMethod) {
-    self.visit_getter_or_function(|a| {
-      if private_method.kind == MethodKind::Getter {
-        a.set_getter_name(&private_method.key);
-      }
-      private_method.visit_children_with(a);
-
-      if let Some(body) = &private_method.function.body {
-        a.check_getter(body.range(), private_method.range());
-      }
-    });
+  fn visit_call_expression(&mut self, call_expr: &CallExpression<'a>) {
+    walk::walk_call_expression(self, call_expr);
+    self.check_call_expr(&call_expr.callee, &call_expr.arguments);
   }
 
-  fn visit_getter_prop(&mut self, getter_prop: &GetterProp) {
-    self.visit_getter_or_function(|a| {
-      a.set_getter_name(&getter_prop.key);
-      getter_prop.visit_children_with(a);
-
-      if let Some(body) = &getter_prop.body {
-        a.check_getter(body.range(), getter_prop.range());
-      }
-    });
-  }
-
-  fn visit_opt_call(&mut self, opt_call: &OptCall) {
-    opt_call.visit_children_with(self);
-    self.check_call_expr(&opt_call.callee, &opt_call.args);
-  }
-
-  fn visit_call_expr(&mut self, call_expr: &CallExpr) {
-    call_expr.visit_children_with(self);
-    let Callee::Expr(callee_expr) = &call_expr.callee else {
-      return;
-    };
-    self.check_call_expr(callee_expr, &call_expr.args);
-  }
-
-  fn visit_return_stmt(&mut self, return_stmt: &ReturnStmt) {
+  fn visit_return_statement(&mut self, return_stmt: &ReturnStatement<'a>) {
     if self.getter_name.is_some() {
       self.has_return = true;
-      if return_stmt.arg.is_none() {
-        self.report_expected(return_stmt.range());
+      if return_stmt.argument.is_none() {
+        self.report_expected(return_stmt.span);
       }
     }
   }

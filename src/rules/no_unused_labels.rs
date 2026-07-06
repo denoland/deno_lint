@@ -1,12 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  BreakStatement, ContinueStatement, LabeledStatement, Program,
+};
 use derive_more::Display;
-use if_chain::if_chain;
 
 #[derive(Debug)]
 pub struct NoUnusedLabels;
@@ -28,13 +28,13 @@ impl LintRule for NoUnusedLabels {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     let mut handler = NoUnusedLabelsHandler::default();
-    handler.traverse(program, context);
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -49,12 +49,15 @@ struct NoUnusedLabelsHandler {
 }
 
 impl NoUnusedLabelsHandler {
-  fn check_label(&mut self, label: Option<&ast_view::Ident>) {
+  fn check_label(
+    &mut self,
+    label: Option<&deno_ast::oxc::ast::ast::LabelIdentifier>,
+  ) {
     if let Some(label) = label {
       if let Some(found) = self
         .labels
         .iter_mut()
-        .rfind(|l| l.name.as_str() == label.sym())
+        .rfind(|l| l.name.as_str() == label.name.as_str())
       {
         found.used = true;
       }
@@ -62,47 +65,48 @@ impl NoUnusedLabelsHandler {
   }
 }
 
-impl Handler for NoUnusedLabelsHandler {
-  fn labeled_stmt(
+impl Handler<'_> for NoUnusedLabelsHandler {
+  fn labeled_statement(
     &mut self,
-    labeled_stmt: &ast_view::LabeledStmt,
+    labeled_stmt: &LabeledStatement,
     _ctx: &mut Context,
   ) {
     self.labels.push(Label {
       used: false,
-      name: labeled_stmt.label.sym().to_string(),
+      name: labeled_stmt.label.name.to_string(),
     });
   }
 
-  fn continue_stmt(
+  fn labeled_statement_exit(
     &mut self,
-    continue_stmt: &ast_view::ContinueStmt,
-    _ctx: &mut Context,
+    labeled_stmt: &LabeledStatement,
+    ctx: &mut Context,
   ) {
-    self.check_label(continue_stmt.label);
-  }
-
-  fn break_stmt(
-    &mut self,
-    break_stmt: &ast_view::BreakStmt,
-    _ctx: &mut Context,
-  ) {
-    self.check_label(break_stmt.label);
-  }
-
-  fn on_exit_node(&mut self, node: ast_view::Node, ctx: &mut Context) {
-    if_chain! {
-      if let Some(ref labeled_stmt) = node.to::<ast_view::LabeledStmt>();
-      if let Some(label) = self.labels.pop();
-      if !label.used;
-      then {
+    if let Some(label) = self.labels.pop() {
+      if !label.used {
         ctx.add_diagnostic(
-          labeled_stmt.range(),
+          labeled_stmt.span,
           CODE,
           NoUnusedLabelsMessage::Unused(label.name),
         );
       }
     }
+  }
+
+  fn continue_statement(
+    &mut self,
+    continue_stmt: &ContinueStatement,
+    _ctx: &mut Context,
+  ) {
+    self.check_label(continue_stmt.label.as_ref());
+  }
+
+  fn break_statement(
+    &mut self,
+    break_stmt: &BreakStatement,
+    _ctx: &mut Context,
+  ) {
+    self.check_label(break_stmt.label.as_ref());
   }
 }
 

@@ -1,19 +1,16 @@
 // Copyright 2020-2024 the Deno authors. All rights reserved. MIT license.
-use super::program_ref;
 use super::Context;
 use super::LintRule;
 use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
-use crate::handler::Traverse;
 use crate::tags::Tags;
-use crate::Program;
 
-use deno_ast::view as ast_view;
-use deno_ast::SourcePos;
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{
+  IdentifierReference, ImportDeclaration, Program,
+};
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoProcessGlobal;
@@ -22,15 +19,15 @@ const CODE: &str = "no-process-global";
 const MESSAGE: &str = "NodeJS process global is discouraged in Deno";
 
 impl LintRule for NoProcessGlobal {
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoProcessGlobalHandler {
-      most_recent_import_range: None,
-    }
-    .traverse(program, context);
+    let mut handler = NoProcessGlobalHandler {
+      most_recent_import_span: None,
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 
   fn code(&self) -> &'static str {
@@ -43,22 +40,15 @@ impl LintRule for NoProcessGlobal {
 }
 
 struct NoProcessGlobalHandler {
-  most_recent_import_range: Option<SourceRange>,
+  most_recent_import_span: Option<Span>,
 }
 
-fn program_code_start(program: Program) -> SourcePos {
-  match program_ref(program) {
-    ast_view::ProgramRef::Module(m) => m
-      .body
-      .first()
-      .map(|node| node.start())
-      .unwrap_or(program.start()),
-    ast_view::ProgramRef::Script(s) => s
-      .body
-      .first()
-      .map(|node| node.start())
-      .unwrap_or(program.start()),
-  }
+fn program_code_start(program: &Program) -> u32 {
+  program
+    .body
+    .first()
+    .map(|node| node.span().start)
+    .unwrap_or(program.span.start)
 }
 
 impl NoProcessGlobalHandler {
@@ -67,11 +57,11 @@ impl NoProcessGlobalHandler {
     // statement. If there are no import statements, we want to insert it at
     // the beginning of the file (but after any header comments).
     let (fix_range, leading, trailing) =
-      if let Some(range) = self.most_recent_import_range {
-        (SourceRange::new(range.end(), range.end()), "\n", "")
+      if let Some(span) = self.most_recent_import_span {
+        (Span::new(span.end, span.end), "\n", "")
       } else {
         let code_start = program_code_start(ctx.program());
-        (SourceRange::new(code_start, code_start), "", "\n")
+        (Span::new(code_start, code_start), "", "\n")
       };
 
     LintFixChange {
@@ -83,11 +73,11 @@ impl NoProcessGlobalHandler {
     }
   }
 
-  fn add_diagnostic(&mut self, ctx: &mut Context, range: SourceRange) {
+  fn add_diagnostic(&mut self, ctx: &mut Context, span: Span) {
     let change = self.fix_change(ctx);
 
     ctx.add_diagnostic_with_fixes(
-      range,
+      span,
       CODE,
       MESSAGE,
       Some(String::from("Add `import process from \"node:process\";`")),
@@ -99,18 +89,26 @@ impl NoProcessGlobalHandler {
   }
 }
 
-impl Handler for NoProcessGlobalHandler {
-  fn ident(&mut self, id: &ast_view::Ident, ctx: &mut Context) {
-    if id.sym() != "process" {
+impl Handler<'_> for NoProcessGlobalHandler {
+  fn identifier_reference(
+    &mut self,
+    id: &IdentifierReference,
+    ctx: &mut Context,
+  ) {
+    if id.name.as_str() != "process" {
       return;
     }
-    if id.ctxt() == ctx.unresolved_ctxt() {
-      self.add_diagnostic(ctx, id.range());
+    if ctx.scope().var_by_name(id.name.as_str()).is_none() {
+      self.add_diagnostic(ctx, id.span);
     }
   }
 
-  fn import_decl(&mut self, imp: &ast_view::ImportDecl, _ctx: &mut Context) {
-    self.most_recent_import_range = Some(imp.range());
+  fn import_declaration(
+    &mut self,
+    imp: &ImportDeclaration,
+    _ctx: &mut Context,
+  ) {
+    self.most_recent_import_span = Some(imp.span);
   }
 }
 

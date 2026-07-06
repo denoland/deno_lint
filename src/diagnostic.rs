@@ -10,8 +10,8 @@ use deno_ast::diagnostics::DiagnosticSnippetHighlight;
 use deno_ast::diagnostics::DiagnosticSnippetHighlightStyle;
 use deno_ast::diagnostics::DiagnosticSourcePos;
 use deno_ast::diagnostics::DiagnosticSourceRange;
+use deno_ast::oxc::span::Span;
 use deno_ast::ModuleSpecifier;
-use deno_ast::SourceRange;
 use deno_ast::SourceTextInfo;
 use serde::Deserialize;
 use serde::Serialize;
@@ -51,7 +51,7 @@ impl LintDiagnosticSeverity {
 #[derive(Debug, Clone)]
 pub struct LintFixChange {
   pub new_text: Cow<'static, str>,
-  pub range: SourceRange,
+  pub range: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -63,7 +63,7 @@ pub struct LintFix {
 #[derive(Clone)]
 pub struct LintDiagnosticRange {
   pub text_info: SourceTextInfo,
-  pub range: SourceRange,
+  pub range: Span,
   /// Additional information displayed beside the highlighted range.
   pub description: Option<String>,
 }
@@ -130,7 +130,7 @@ impl Diagnostic for LintDiagnostic {
       Some(range) => DiagnosticLocation::ModulePosition {
         specifier: Cow::Borrowed(&self.specifier),
         text_info: Cow::Borrowed(&range.text_info),
-        source_pos: DiagnosticSourcePos::SourcePos(range.range.start),
+        source_pos: DiagnosticSourcePos::ByteIndex(range.range.start as usize),
       },
       None => DiagnosticLocation::Module {
         specifier: Cow::Borrowed(&self.specifier),
@@ -150,8 +150,8 @@ impl Diagnostic for LintDiagnostic {
       source: Cow::Borrowed(&range.text_info),
       highlights: vec![DiagnosticSnippetHighlight {
         range: DiagnosticSourceRange {
-          start: DiagnosticSourcePos::SourcePos(range.range.start),
-          end: DiagnosticSourcePos::SourcePos(range.range.end),
+          start: DiagnosticSourcePos::ByteIndex(range.range.start as usize),
+          end: DiagnosticSourcePos::ByteIndex(range.range.end as usize),
         },
         style,
         description: range.description.as_deref().map(Cow::Borrowed),

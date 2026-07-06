@@ -3,11 +3,11 @@
 use std::collections::HashSet;
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{JSXAttrName, JSXAttrOrSpread, JSXOpeningElement};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  JSXAttributeItem, JSXAttributeName, JSXOpeningElement, Program,
+};
 
 #[derive(Debug)]
 pub struct JSXNoDuplicateProps;
@@ -23,12 +23,13 @@ impl LintRule for JSXNoDuplicateProps {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXNoDuplicatedPropsHandler.traverse(program, context);
+    let mut handler = JSXNoDuplicatedPropsHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -37,19 +38,19 @@ const HINT: &str = "Remove the duplicated attribute.";
 
 struct JSXNoDuplicatedPropsHandler;
 
-impl Handler for JSXNoDuplicatedPropsHandler {
+impl Handler<'_> for JSXNoDuplicatedPropsHandler {
   fn jsx_opening_element(
     &mut self,
     node: &JSXOpeningElement,
     ctx: &mut Context,
   ) {
-    let mut seen: HashSet<&'_ str> = HashSet::new();
-    for attr in node.attrs {
-      if let JSXAttrOrSpread::JSXAttr(attr_name) = attr {
-        if let JSXAttrName::Ident(id) = attr_name.name {
-          let name = id.sym().as_str();
+    let mut seen: HashSet<&str> = HashSet::new();
+    for attr in &node.attributes {
+      if let JSXAttributeItem::Attribute(attr_node) = attr {
+        if let JSXAttributeName::Identifier(id) = &attr_node.name {
+          let name = id.name.as_str();
           if seen.contains(name) {
-            ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
+            ctx.add_diagnostic_with_hint(id.span, CODE, MESSAGE, HINT);
           }
 
           seen.insert(name);

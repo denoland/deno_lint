@@ -1,12 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::view::{self as ast_view};
-use deno_ast::SourceRanged;
-use if_chain::if_chain;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, AwaitExpression, ForOfStatement, Function, Program,
+};
 
 #[derive(Debug)]
 pub struct NoTopLevelAwait;
@@ -19,53 +17,63 @@ impl LintRule for NoTopLevelAwait {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoTopLevelAwaitHandler.traverse(program, context);
+    let mut handler = NoTopLevelAwaitHandler { fn_depth: 0 };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoTopLevelAwaitHandler;
-
-impl Handler for NoTopLevelAwaitHandler {
-  fn await_expr(
-    &mut self,
-    await_expr: &ast_view::AwaitExpr,
-    ctx: &mut Context,
-  ) {
-    if !is_node_inside_function(await_expr) {
-      ctx.add_diagnostic(await_expr.range(), CODE, MESSAGE);
-    }
-  }
-
-  fn for_of_stmt(
-    &mut self,
-    for_of_stmt: &ast_view::ForOfStmt,
-    ctx: &mut Context,
-  ) {
-    if_chain! {
-      if for_of_stmt.is_await();
-      if !is_node_inside_function(for_of_stmt);
-      then {
-        ctx.add_diagnostic(for_of_stmt.range(), CODE, MESSAGE)
-      }
-    }
-  }
+struct NoTopLevelAwaitHandler {
+  fn_depth: u32,
 }
 
-fn is_node_inside_function<'a>(node: &impl NodeTrait<'a>) -> bool {
-  use deno_ast::view::Node;
-  match node.parent() {
-    Some(Node::FnDecl(_))
-    | Some(Node::FnExpr(_))
-    | Some(Node::ArrowExpr(_))
-    | Some(Node::ClassMethod(_))
-    | Some(Node::PrivateMethod(_)) => true,
-    None => false,
-    Some(n) => is_node_inside_function(&n),
+impl Handler<'_> for NoTopLevelAwaitHandler {
+  fn function(&mut self, _n: &Function, _ctx: &mut Context) {
+    self.fn_depth += 1;
+  }
+
+  fn function_exit(&mut self, _n: &Function, _ctx: &mut Context) {
+    self.fn_depth -= 1;
+  }
+
+  fn arrow_function_expression(
+    &mut self,
+    _n: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    self.fn_depth += 1;
+  }
+
+  fn arrow_function_expression_exit(
+    &mut self,
+    _n: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    self.fn_depth -= 1;
+  }
+
+  fn await_expression(
+    &mut self,
+    await_expr: &AwaitExpression,
+    ctx: &mut Context,
+  ) {
+    if self.fn_depth == 0 {
+      ctx.add_diagnostic(await_expr.span, CODE, MESSAGE);
+    }
+  }
+
+  fn for_of_statement(
+    &mut self,
+    for_of_stmt: &ForOfStatement,
+    ctx: &mut Context,
+  ) {
+    if for_of_stmt.r#await && self.fn_depth == 0 {
+      ctx.add_diagnostic(for_of_stmt.span, CODE, MESSAGE);
+    }
   }
 }
 

@@ -1,14 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::ecma_visit::Visit;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{
+  ArrayPattern, AssignmentPattern, FormalParameter, ObjectPattern, Program,
+};
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::syntax::scope::ScopeFlags;
 
 #[derive(Debug)]
 pub struct NoEmptyPattern;
@@ -27,77 +25,77 @@ impl LintRule for NoEmptyPattern {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoEmptyPatternVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    let mut visitor = NoEmptyPatternVisitor {
+      context,
+      in_assignment_pattern_left: false,
+    };
+    visitor.visit_program(program);
   }
 }
 
-struct NoEmptyPatternVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct NoEmptyPatternVisitor<'c, 'a> {
+  context: &'c mut Context<'a>,
+  /// True when we're visiting the left side of an AssignmentPattern.
+  /// An empty pattern with a default value (`{} = defaultVal`) is allowed.
+  in_assignment_pattern_left: bool,
 }
 
-impl<'c, 'view> NoEmptyPatternVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl Visit for NoEmptyPatternVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_object_pat_prop(&mut self, obj_pat_prop: &ObjectPatProp) {
-    if let ObjectPatProp::KeyValue(kv_prop) = obj_pat_prop {
-      if let deno_ast::swc::ast::Pat::Object(obj_pat) = &*kv_prop.value {
-        self.visit_object_pat(obj_pat);
-      } else if let deno_ast::swc::ast::Pat::Array(arr_pat) = &*kv_prop.value {
-        self.visit_array_pat(arr_pat);
-      }
-    }
+impl<'a> Visit<'a> for NoEmptyPatternVisitor<'_, 'a> {
+  fn visit_assignment_pattern(&mut self, n: &AssignmentPattern<'a>) {
+    let prev = self.in_assignment_pattern_left;
+    self.in_assignment_pattern_left = true;
+    self.visit_binding_pattern(&n.left);
+    self.in_assignment_pattern_left = prev;
+    self.visit_expression(&n.right);
   }
 
-  fn visit_object_pat(&mut self, obj_pat: &ObjectPat) {
-    if obj_pat.props.is_empty() {
-      if obj_pat.type_ann.is_none() {
-        self.context.add_diagnostic_with_hint(
-          obj_pat.range(),
-          CODE,
-          MESSAGE,
-          HINT,
-        )
-      }
-    } else {
-      for prop in &obj_pat.props {
-        self.visit_object_pat_prop(prop)
-      }
+  fn visit_formal_parameter(&mut self, n: &FormalParameter<'a>) {
+    // In OXC, function parameter defaults are in `initializer`, not nested in
+    // an AssignmentPattern. Treat any parameter with an initializer as having
+    // a default value, so an empty pattern like `{}: Type = {}` is allowed.
+    let prev = self.in_assignment_pattern_left;
+    if n.initializer.is_some() {
+      self.in_assignment_pattern_left = true;
     }
+    walk::walk_formal_parameter(self, n);
+    self.in_assignment_pattern_left = prev;
   }
 
-  fn visit_array_pat(&mut self, arr_pat: &ArrayPat) {
-    if arr_pat.elems.is_empty() {
-      self.context.add_diagnostic_with_hint(
-        arr_pat.range(),
-        CODE,
-        MESSAGE,
-        HINT,
-      )
-    } else {
-      for element in arr_pat.elems.iter().flatten() {
-        if let deno_ast::swc::ast::Pat::Object(obj_pat) = element {
-          self.visit_object_pat(obj_pat);
-        } else if let deno_ast::swc::ast::Pat::Array(arr_pat) = element {
-          self.visit_array_pat(arr_pat);
-        }
-      }
+  fn visit_object_pattern(&mut self, obj_pat: &ObjectPattern<'a>) {
+    if obj_pat.properties.is_empty()
+      && obj_pat.rest.is_none()
+      && !self.in_assignment_pattern_left
+    {
+      self
+        .context
+        .add_diagnostic_with_hint(obj_pat.span, CODE, MESSAGE, HINT);
     }
+    walk::walk_object_pattern(self, obj_pat);
+  }
+
+  fn visit_array_pattern(&mut self, arr_pat: &ArrayPattern<'a>) {
+    if arr_pat.elements.is_empty()
+      && arr_pat.rest.is_none()
+      && !self.in_assignment_pattern_left
+    {
+      self
+        .context
+        .add_diagnostic_with_hint(arr_pat.span, CODE, MESSAGE, HINT);
+    }
+    walk::walk_array_pattern(self, arr_pat);
+  }
+
+  fn visit_function(
+    &mut self,
+    func: &deno_ast::oxc::ast::ast::Function<'a>,
+    flags: ScopeFlags,
+  ) {
+    walk::walk_function(self, func, flags);
   }
 }
 

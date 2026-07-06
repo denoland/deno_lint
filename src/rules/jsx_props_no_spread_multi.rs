@@ -4,11 +4,10 @@ use std::collections::HashSet;
 
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{JSXAttrOrSpread, JSXOpeningElement, NodeTrait};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{JSXAttributeItem, JSXOpeningElement, Program};
+use deno_ast::oxc::span::{GetSpan, Span};
 
 #[derive(Debug)]
 pub struct JSXPropsNoSpreadMulti;
@@ -24,12 +23,13 @@ impl LintRule for JSXPropsNoSpreadMulti {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXPropsNoSpreadMultiHandler.traverse(program, context);
+    let mut handler = JSXPropsNoSpreadMultiHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -38,19 +38,21 @@ const HINT: &str = "Remove this spread attribute";
 
 struct JSXPropsNoSpreadMultiHandler;
 
-impl Handler for JSXPropsNoSpreadMultiHandler {
+impl Handler<'_> for JSXPropsNoSpreadMultiHandler {
   fn jsx_opening_element(
     &mut self,
     node: &JSXOpeningElement,
     ctx: &mut Context,
   ) {
     let mut seen: HashSet<&str> = HashSet::new();
-    for attr in node.attrs {
-      if let JSXAttrOrSpread::SpreadElement(spread) = attr {
-        let text = spread.expr.text();
+    for attr in &node.attributes {
+      if let JSXAttributeItem::SpreadAttribute(spread) = attr {
+        let arg_span = spread.argument.span();
+        let text =
+          &ctx.source_text()[arg_span.start as usize..arg_span.end as usize];
         if seen.contains(text) {
           ctx.add_diagnostic_with_fixes(
-            spread.range(),
+            spread.span,
             CODE,
             MESSAGE,
             Some(HINT.to_string()),
@@ -58,10 +60,7 @@ impl Handler for JSXPropsNoSpreadMultiHandler {
               description: "Remove this spread attribute".into(),
               changes: vec![LintFixChange {
                 new_text: "".into(),
-                range: SourceRange {
-                  start: attr.range().start - 2,
-                  end: attr.range().end + 1,
-                },
+                range: Span::new(attr.span().start - 1, attr.span().end),
               }],
             }],
           );
@@ -99,7 +98,7 @@ mod tests {
       filename: "file:///foo.jsx",
       r#"<div {...foo} {...foo} />"#: [
         {
-          col: 15,
+          col: 14,
           message: MESSAGE,
           hint: HINT,
           fix: (
@@ -110,7 +109,7 @@ mod tests {
       ],
       r#"<Foo {...foo} {...foo} />"#: [
         {
-          col: 15,
+          col: 14,
           message: MESSAGE,
           hint: HINT,
           fix: (
@@ -121,7 +120,7 @@ mod tests {
       ],
       r#"<div {...foo.bar.baz} a {...foo.bar.baz} />"#: [
         {
-          col: 25,
+          col: 24,
           message: MESSAGE,
           hint: HINT,
           fix: (

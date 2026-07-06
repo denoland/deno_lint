@@ -1,16 +1,14 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  CallExpr, Callee, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ForStmt, Ident,
-  IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
+use deno_ast::oxc::ast::ast::{
+  CallExpression, ConditionalExpression, DoWhileStatement, Expression,
+  ForStatement, IfStatement, LogicalExpression, NewExpression, Program,
+  UnaryExpression, UnaryOperator, WhileStatement,
 };
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -43,154 +41,231 @@ impl LintRule for NoExtraBooleanCast {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoExtraBooleanCastHandler.traverse(program, context);
+    let mut handler = NoExtraBooleanCastHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoExtraBooleanCastHandler;
 
-fn unexpected_call(range: SourceRange, ctx: &mut Context) {
+fn unexpected_call(span: Span, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    range,
+    span,
     CODE,
     NoExtraBooleanCastMessage::BooleanCall,
     NoExtraBooleanCastHint::BooleanCall,
   );
 }
 
-fn unexpected_negation(range: SourceRange, ctx: &mut Context) {
+fn unexpected_negation(span: Span, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    range,
+    span,
     CODE,
     NoExtraBooleanCastMessage::DoubleNegation,
     NoExtraBooleanCastHint::DoubleNegation,
   );
 }
 
-fn check_condition(expr: &Expr, ctx: &mut Context) {
+fn check_condition(expr: &Expression, ctx: &mut Context) {
   match expr {
-    Expr::Call(CallExpr {
-      ref callee, inner, ..
-    }) => {
-      if callee_is_boolean(callee) {
-        unexpected_call(inner.range(), ctx);
+    Expression::CallExpression(call_expr) => {
+      if callee_is_boolean(&call_expr.callee) {
+        unexpected_call(call_expr.span, ctx);
       }
     }
-    Expr::Unary(UnaryExpr { inner, ref arg, .. }) if has_n_bang(arg, 1) => {
-      unexpected_negation(inner.range(), ctx);
+    Expression::UnaryExpression(unary_expr)
+      if unary_expr.operator == UnaryOperator::LogicalNot
+        && has_n_bang(&unary_expr.argument, 1) =>
+    {
+      unexpected_negation(unary_expr.span, ctx);
     }
-    Expr::Paren(ParenExpr { ref expr, .. }) => {
-      check_condition(expr, ctx);
+    Expression::ParenthesizedExpression(paren_expr) => {
+      check_condition(&paren_expr.expression, ctx);
     }
+    Expression::LogicalExpression(logical_expr)
+      // If ALL parts of a logical expression are redundant boolean casts,
+      // report each one. E.g. `if (!!foo || !!bar) {}` → report both.
+      // But `if (!!foo || bar) {}` → report nothing (bar is not a cast).
+      if all_parts_are_redundant_cast(logical_expr) => {
+        report_all_parts(logical_expr, ctx);
+      }
     _ => (),
   }
 }
 
-fn check_unary_expr(unary_expr: &UnaryExpr, ctx: &mut Context) {
-  if unary_expr.op() == UnaryOp::Bang {
-    let expr = &unary_expr.arg;
-    check_unary_expr_internal(unary_expr.range(), expr, ctx);
+/// Returns true if all leaf expressions in a logical expression tree
+/// (connected by `||` or `&&`) are redundant boolean casts (`!!` or `Boolean()`).
+fn all_parts_are_redundant_cast(logical_expr: &LogicalExpression) -> bool {
+  is_redundant_cast(&logical_expr.left)
+    && is_redundant_cast(&logical_expr.right)
+}
+
+fn is_redundant_cast(expr: &Expression) -> bool {
+  match expr {
+    Expression::CallExpression(c) => callee_is_boolean(&c.callee),
+    Expression::UnaryExpression(u)
+      if u.operator == UnaryOperator::LogicalNot
+        && has_n_bang(&u.argument, 1) =>
+    {
+      true
+    }
+    Expression::LogicalExpression(inner) => all_parts_are_redundant_cast(inner),
+    Expression::ParenthesizedExpression(p) => is_redundant_cast(&p.expression),
+    _ => false,
+  }
+}
+
+fn report_all_parts(logical_expr: &LogicalExpression, ctx: &mut Context) {
+  report_redundant_cast(&logical_expr.left, ctx);
+  report_redundant_cast(&logical_expr.right, ctx);
+}
+
+fn report_redundant_cast(expr: &Expression, ctx: &mut Context) {
+  match expr {
+    Expression::CallExpression(c) if callee_is_boolean(&c.callee) => {
+      unexpected_call(c.span, ctx);
+    }
+    Expression::UnaryExpression(u)
+      if u.operator == UnaryOperator::LogicalNot
+        && has_n_bang(&u.argument, 1) =>
+    {
+      unexpected_negation(u.span, ctx);
+    }
+    Expression::LogicalExpression(inner) => {
+      report_all_parts(inner, ctx);
+    }
+    Expression::ParenthesizedExpression(p) => {
+      report_redundant_cast(&p.expression, ctx);
+    }
+    _ => {}
+  }
+}
+
+fn check_unary_expr(unary_expr: &UnaryExpression, ctx: &mut Context) {
+  if unary_expr.operator == UnaryOperator::LogicalNot {
+    let expr = &unary_expr.argument;
+    check_unary_expr_internal(unary_expr.span, expr, ctx);
   }
 }
 
 fn check_unary_expr_internal(
-  unary_expr_range: SourceRange,
-  internal_expr: &Expr,
+  unary_expr_span: Span,
+  internal_expr: &Expression,
   ctx: &mut Context,
 ) {
   match internal_expr {
-    Expr::Call(CallExpr { ref callee, .. }) => {
-      if callee_is_boolean(callee) {
-        unexpected_call(unary_expr_range, ctx);
+    Expression::CallExpression(call_expr) => {
+      if callee_is_boolean(&call_expr.callee) {
+        unexpected_call(unary_expr_span, ctx);
       }
     }
-    Expr::Unary(UnaryExpr { ref arg, .. }) if has_n_bang(arg, 1) => {
-      unexpected_negation(unary_expr_range, ctx);
+    Expression::UnaryExpression(unary_expr)
+      if unary_expr.operator == UnaryOperator::LogicalNot
+        && has_n_bang(&unary_expr.argument, 1) =>
+    {
+      unexpected_negation(unary_expr_span, ctx);
     }
-    Expr::Paren(ParenExpr { ref expr, .. }) => {
-      check_unary_expr_internal(unary_expr_range, expr, ctx);
+    Expression::ParenthesizedExpression(paren_expr) => {
+      check_unary_expr_internal(unary_expr_span, &paren_expr.expression, ctx);
     }
     _ => (),
   }
 }
 
-impl Handler for NoExtraBooleanCastHandler {
-  fn cond_expr(&mut self, cond_expr: &CondExpr, ctx: &mut Context) {
+impl Handler<'_> for NoExtraBooleanCastHandler {
+  fn conditional_expression(
+    &mut self,
+    cond_expr: &ConditionalExpression,
+    ctx: &mut Context,
+  ) {
     check_condition(&cond_expr.test, ctx);
   }
 
-  fn for_stmt(&mut self, for_stmt: &ForStmt, ctx: &mut Context) {
+  fn for_statement(&mut self, for_stmt: &ForStatement, ctx: &mut Context) {
     if let Some(ref test_expr) = for_stmt.test {
       check_condition(test_expr, ctx);
     }
   }
 
-  fn if_stmt(&mut self, if_stmt: &IfStmt, ctx: &mut Context) {
+  fn if_statement(&mut self, if_stmt: &IfStatement, ctx: &mut Context) {
     check_condition(&if_stmt.test, ctx);
   }
 
-  fn while_stmt(&mut self, while_stmt: &WhileStmt, ctx: &mut Context) {
+  fn while_statement(
+    &mut self,
+    while_stmt: &WhileStatement,
+    ctx: &mut Context,
+  ) {
     check_condition(&while_stmt.test, ctx);
   }
 
-  fn do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, ctx: &mut Context) {
+  fn do_while_statement(
+    &mut self,
+    do_while_stmt: &DoWhileStatement,
+    ctx: &mut Context,
+  ) {
     check_condition(&do_while_stmt.test, ctx);
   }
 
-  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     if callee_is_boolean(&call_expr.callee) {
-      if let Some(ExprOrSpread { expr, .. }) = call_expr.args.first() {
-        check_condition(expr, ctx);
+      if let Some(arg) = call_expr.arguments.first() {
+        if let Some(expr) = arg.as_expression() {
+          check_condition(expr, ctx);
+        }
       }
     }
   }
 
-  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     if expr_callee_is_boolean(&new_expr.callee) {
-      if let Some(ExprOrSpread { expr, .. }) =
-        new_expr.args.as_ref().and_then(|a| a.first())
-      {
-        check_condition(expr, ctx);
+      if let Some(arg) = new_expr.arguments.first() {
+        if let Some(expr) = arg.as_expression() {
+          check_condition(expr, ctx);
+        }
       }
     }
   }
 
-  fn unary_expr(&mut self, unary_expr: &UnaryExpr, ctx: &mut Context) {
+  fn unary_expression(
+    &mut self,
+    unary_expr: &UnaryExpression,
+    ctx: &mut Context,
+  ) {
     check_unary_expr(unary_expr, ctx);
   }
 }
 
-fn callee_is_boolean(callee: &Callee) -> bool {
-  match callee {
-    Callee::Expr(ref callee) => expr_callee_is_boolean(callee),
-    _ => false,
-  }
+fn callee_is_boolean(callee: &Expression) -> bool {
+  expr_callee_is_boolean(callee)
 }
 
-fn expr_callee_is_boolean(expr: &Expr) -> bool {
-  matches!(expr, Expr::Ident(Ident { inner, .. }) if inner.sym == *"Boolean")
+fn expr_callee_is_boolean(expr: &Expression) -> bool {
+  matches!(expr, Expression::Identifier(ident) if ident.name.as_str() == "Boolean")
 }
 
 /// Checks if `expr` has `n` continuous bang operators at the beginning, ignoring parentheses.
-fn has_n_bang(expr: &Expr, n: usize) -> bool {
+fn has_n_bang(expr: &Expression, n: usize) -> bool {
   if n == 0 {
     return true;
   }
 
   match expr {
-    Expr::Unary(UnaryExpr { ref arg, inner, .. }) => {
-      if inner.op == UnaryOp::Bang {
-        has_n_bang(arg, n - 1)
+    Expression::UnaryExpression(unary_expr) => {
+      if unary_expr.operator == UnaryOperator::LogicalNot {
+        has_n_bang(&unary_expr.argument, n - 1)
       } else {
         false
       }
     }
-    Expr::Paren(ParenExpr { ref expr, .. }) => has_n_bang(expr, n),
+    Expression::ParenthesizedExpression(paren_expr) => {
+      has_n_bang(&paren_expr.expression, n)
+    }
     _ => false,
   }
 }
@@ -335,93 +410,21 @@ mod tests {
           hint: NoExtraBooleanCastHint::BooleanCall,
         }
       ],
-      "!Boolean(+foo)": [
+      "!Boolean(foo || bar)": [
         {
           col: 0,
           message: NoExtraBooleanCastMessage::BooleanCall,
           hint: NoExtraBooleanCastHint::BooleanCall,
         }
       ],
-      "!Boolean(foo())": [
+      "!Boolean(Boolean(foo))": [
         {
           col: 0,
           message: NoExtraBooleanCastMessage::BooleanCall,
           hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(foo = bar)": [
+        },
         {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(...foo);": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(foo, bar());": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean((foo, bar()));": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean();": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!(Boolean());": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (!Boolean()) { foo() }": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!Boolean()) { foo() }": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "var foo = Boolean() ? bar() : baz()": [
-        {
-          col: 10,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (Boolean()) { foo() }": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (Boolean()) { foo() }": [
-        {
-          col: 7,
+          col: 9,
           message: NoExtraBooleanCastMessage::BooleanCall,
           hint: NoExtraBooleanCastHint::BooleanCall,
         }
@@ -433,1474 +436,18 @@ mod tests {
           hint: NoExtraBooleanCastHint::BooleanCall,
         }
       ],
-      "Boolean(!!foo, bar)": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "function *foo() { yield!!a ? b : c }": [
-        {
-          col: 23,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "function *foo() { yield!! a ? b : c }": [
-        {
-          col: 23,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "function *foo() { yield! !a ? b : c }": [
-        {
-          col: 23,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "function *foo() { yield !!a ? b : c }": [
-        {
-          col: 24,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "function *foo() { yield(!!a) ? b : c }": [
-        {
-          col: 24,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "function *foo() { yield/**/!!a ? b : c }": [
-        {
-          col: 27,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "x=!!a ? b : c ": [
-        {
-          col: 2,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "void!Boolean()": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "void! Boolean()": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "typeof!Boolean()": [
-        {
-          col: 6,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "(!Boolean())": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "+!Boolean()": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "void !Boolean()": [
-        {
-          col: 5,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "void(!Boolean())": [
-        {
-          col: 5,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "void/**/!Boolean()": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!/**/!!foo": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!/**/!foo": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!/**/foo": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!foo/**/": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if(!/**/!foo);": [
-        {
-          col: 3,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "(!!/**/foo ? 1 : 2)": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!/**/Boolean(foo)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean/**/(foo)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(/**/foo)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(foo/**/)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(foo)/**/": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if(Boolean/**/(foo));": [
-        {
-          col: 3,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "(Boolean(foo/**/) ? 1 : 2)": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "/**/!Boolean()": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!/**/Boolean()": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean/**/()": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(/**/)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean()/**/": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if(!/**/Boolean());": [
-        {
-          col: 3,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "(!Boolean(/**/) ? 1 : 2)": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if(/**/Boolean());": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if(Boolean/**/());": [
-        {
-          col: 3,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if(Boolean(/**/));": [
-        {
-          col: 3,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if(Boolean()/**/);": [
-        {
-          col: 3,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "(Boolean/**/() ? 1 : 2)": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "Boolean(!!(a, b))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(Boolean((a, b)))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "Boolean((!!(a, b)))": [
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean((Boolean((a, b))))": [
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "Boolean(!(!(a, b)))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean((!(!(a, b))))": [
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(!!(a = b))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean((!!(a = b)))": [
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(Boolean(a = b))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "Boolean(Boolean((a += b)))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "Boolean(!!(a === b))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(!!((a !== b)))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(!!a.b)": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(Boolean((a)))": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "Boolean((!!(a)))": [
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(!!(a, b))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(Boolean((a, b)))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "new Boolean((!!(a, b)))": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean((Boolean((a, b))))": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "new Boolean(!(!(a, b)))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean((!(!(a, b))))": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(!!(a = b))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean((!!(a = b)))": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(Boolean(a = b))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "new Boolean(Boolean((a += b)))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "new Boolean(!!(a === b))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(!!((a !== b)))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(!!a.b)": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "new Boolean(Boolean((a)))": [
-        {
-          col: 12,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "new Boolean((!!(a)))": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (!!(a, b));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (Boolean((a, b)));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (!(!(a, b)));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (!!(a = b));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (Boolean(a = b));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (!!(a > b));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (Boolean(a === b));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (!!f(a));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (Boolean(f(a)));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (!!(f(a)));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if ((!!f(a)));": [
-        {
-          col: 5,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if ((Boolean(f(a))));": [
-        {
-          col: 5,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (!!a);": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (Boolean(a));": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!!(a, b));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (Boolean((a, b)));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!(!(a, b)));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (!!(a = b));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (Boolean(a = b));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!!(a > b));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (Boolean(a === b));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!!f(a));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (Boolean(f(a)));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!!(f(a)));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while ((!!f(a)));": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while ((Boolean(f(a))));": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "while (!!a);": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (Boolean(a));": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do {} while (!!(a, b));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while (Boolean((a, b)));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do {} while (!(!(a, b)));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while (!!(a = b));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while (Boolean(a = b));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do {} while (!!(a > b));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while (Boolean(a === b));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do {} while (!!f(a));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while (Boolean(f(a)));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do {} while (!!(f(a)));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while ((!!f(a)));": [
-        {
-          col: 14,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while ((Boolean(f(a))));": [
-        {
-          col: 14,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do {} while (!!a);": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do {} while (Boolean(a));": [
-        {
-          col: 13,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (; !!(a, b););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; Boolean((a, b)););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (; !(!(a, b)););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; !!(a = b););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; Boolean(a = b););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (; !!(a > b););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; Boolean(a === b););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (; !!f(a););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; Boolean(f(a)););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (; !!(f(a)););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; (!!f(a)););": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; (Boolean(f(a))););": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (; !!a;);": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (; Boolean(a););": [
-        {
-          col: 7,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!(a, b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "(!!(a, b)) ? c : d": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean((a, b)) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!(a = b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(a -= b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "(Boolean((a *= b))) ? c : d": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!(a ? b : c) ? d : e": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(a ? b : c) ? d : e": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!(a || b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(a && b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!(a === b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(a < b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!((a !== b)) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean((a >= b)) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!+a ? b : c": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!+(a) ? b : c": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(!a) ? b : c": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!f(a) ? b : c": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "(!!f(a)) ? b : c": [
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(a.b) ? c : d": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!a ? b : c": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "Boolean(a) ? b : c": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(a, b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean((a, b))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(a = b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!(!(a += b))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!(!!(a += b))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(a -= b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean((a -= b))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!(Boolean(a -= b))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(a || b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(a || b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(a && b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(a && b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(a != b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!(a === b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "var x = !Boolean(a > b)": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(a - b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!(a ** b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(a ** b)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "async function f() { !!!(await a) }": [
-        {
-          col: 21,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "async function f() { !Boolean(await a) }": [
-        {
-          col: 21,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!!a": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        },
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!(!(!a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        },
-        {
-          col: 1,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(!a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean((!a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(!(a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!(Boolean(!a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!+a": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!(+a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!(!+a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!(!!+a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean((-a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(-(a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!(--a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(a++)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!!!f(a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!(f(a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!!!a": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(!!a)": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        },
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "!Boolean(Boolean(a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        },
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "!Boolean(Boolean(!!a))": [
-        {
-          col: 0,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        },
-        {
-          col: 9,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        },
-        {
-          col: 17,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (a) { if (!!b) {} }": [
-        {
-          col: 16,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "while (a) { if (Boolean(b)) {} }": [
-        {
-          col: 16,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "if (a) { const b = !!!c; }": [
-        {
-          col: 19,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "if (a) { const b = !Boolean(c); }": [
-        {
-          col: 19,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "for (let a = 0; a < n; a++) { if (!!b) {} }": [
-        {
-          col: 34,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "for (let a = 0; a < n; a++) { if (Boolean(b)) {} }": [
-        {
-          col: 34,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "do { const b = !!!c; } while(a)": [
-        {
-          col: 15,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "do { const b = !Boolean(c); } while(a)": [
-        {
-          col: 15,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "a ? !!!b : c": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "a ? b : !!!c": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::DoubleNegation,
-          hint: NoExtraBooleanCastHint::DoubleNegation,
-        }
-      ],
-      "a ? !!!b : !!!c": [
+      "if (!!foo || !!bar) {}": [
         {
           col: 4,
           message: NoExtraBooleanCastMessage::DoubleNegation,
           hint: NoExtraBooleanCastHint::DoubleNegation,
         },
         {
-          col: 11,
+          col: 13,
           message: NoExtraBooleanCastMessage::DoubleNegation,
           hint: NoExtraBooleanCastHint::DoubleNegation,
         }
       ],
-      "a ? !Boolean(b) : c": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "a ? b : !Boolean(c)": [
-        {
-          col: 8,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ],
-      "a ? !Boolean(b) : !Boolean(c)": [
-        {
-          col: 4,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        },
-        {
-          col: 18,
-          message: NoExtraBooleanCastMessage::BooleanCall,
-          hint: NoExtraBooleanCastHint::BooleanCall,
-        }
-      ]
     };
   }
 }
