@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [macos-15-intel, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest, ubuntu-24.04-arm]
 
     env:
       CARGO_INCREMENTAL: 0
@@ -74,10 +74,17 @@ jobs:
 
       - name: Pre-release (linux)
         if: |
-          contains(matrix.os, 'ubuntu')
+          contains(matrix.os, 'ubuntu') && !contains(matrix.os, 'arm')
         run: |
           cd target/release/examples
           zip -r dlint-x86_64-unknown-linux-gnu.zip dlint
+
+      - name: Pre-release (linux-aarch64)
+        if: |
+          contains(matrix.os, 'arm')
+        run: |
+          cd target/release/examples
+          zip -r dlint-aarch64-unknown-linux-gnu.zip dlint
 
       - name: Pre-release (mac)
         if: |
@@ -103,5 +110,6 @@ jobs:
           files: |
             target/release/examples/dlint-x86_64-pc-windows-msvc.zip
             target/release/examples/dlint-x86_64-unknown-linux-gnu.zip
+            target/release/examples/dlint-aarch64-unknown-linux-gnu.zip
             target/release/examples/dlint-x86_64-apple-darwin.zip
           draft: true
