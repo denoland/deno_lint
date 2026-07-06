@@ -116,6 +116,7 @@
     "prefer-ascii",
     "prefer-const",
     "prefer-namespace-keyword",
+    "prefer-object-shorthand",
     "prefer-primordials",
     "require-await",
     "require-yield",
