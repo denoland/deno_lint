@@ -4,6 +4,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
 use crate::Program;
+use deno_ast::swc::ast::BinaryOp;
 use deno_ast::view::{AwaitExpr, Expr};
 use deno_ast::SourceRanged;
 use derive_more::Display;
@@ -65,7 +66,6 @@ fn not_promise(expr: &Expr) -> bool {
     Expr::Array(_)
     | Expr::Arrow(_)
     | Expr::Await(_)
-    | Expr::Bin(_)
     | Expr::Class(_)
     | Expr::Fn(_)
     | Expr::JSXElement(_)
@@ -74,6 +74,13 @@ fn not_promise(expr: &Expr) -> bool {
     | Expr::Tpl(_)
     | Expr::Unary(_)
     | Expr::Update(_) => true,
+    // Logical expressions (`&&`, `||`, `??`) are represented as `BinExpr` in
+    // the swc AST, but they can evaluate to a promise, so they are not
+    // guaranteed to be non-promises. Only non-logical binary expressions are.
+    Expr::Bin(bin) => !matches!(
+      bin.op(),
+      BinaryOp::LogicalOr | BinaryOp::LogicalAnd | BinaryOp::NullishCoalescing
+    ),
     Expr::Seq(seq) => seq.exprs.last().is_some_and(not_promise),
     Expr::Paren(paren) => not_promise(&paren.expr),
     _ => false,
@@ -97,6 +104,9 @@ mod tests {
       "await a || b",
       "await a && b",
       "await a ?? b",
+      "await (a || b)",
+      "await (a && b)",
+      "await (a ?? b)",
       "await new Foo()",
       "await tagged``",
       "class A { async foo() { await this }}",
