@@ -42,7 +42,17 @@ impl Handler for NoEmptyCaseHandler {
     context: &mut Context,
   ) {
     if let [stmt] = switch_case.cons.iter().as_slice() {
+      // Only treat the case as empty when its single statement is an empty
+      // block (e.g. `case 0: {}`). Guarding on `Stmt::Block` avoids panicking
+      // on statements shorter than two characters (e.g. `case 0:;`) and avoids
+      // false positives on real statements (e.g. `case 0: a;`).
+      if !matches!(stmt, deno_ast::view::Stmt::Block(_)) {
+        return;
+      }
       let text = stmt.text();
+      // The block text between the surrounding braces must be whitespace-only.
+      // Slicing off the braces keeps comment-only blocks (e.g. `{ /* todo */ }`)
+      // from being reported as empty.
       if text[1..text.len() - 1].trim().is_empty() {
         let range = stmt.range();
         let change = LintFixChange {
@@ -74,6 +84,8 @@ mod tests {
       NoEmptyCase,
       "switch (n) {case 0:case 1:{// todo \n}}",
       "switch (n) {case 0:case 1:default:}",
+      "switch (n) { case 0:; }",
+      "switch (n) { case 0: a; }",
     };
   }
 
