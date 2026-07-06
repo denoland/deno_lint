@@ -234,7 +234,7 @@ mod tests {
     });
     let specifier = ModuleSpecifier::parse("file:///foo.ts").unwrap();
     let media_type = MediaType::from_specifier(&specifier);
-    let diagnostics = linter
+    linter
       .lint_file(LintFileOptions {
         specifier,
         source_code: source.to_string(),
@@ -245,8 +245,7 @@ mod tests {
         },
         external_linter: None,
       })
-      .unwrap();
-    diagnostics
+      .unwrap()
   }
 
   // Regression test for #1475: a configured `custom_ignore_diagnostic_directive`

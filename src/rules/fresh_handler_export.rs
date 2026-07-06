@@ -76,7 +76,7 @@ impl Handler<'_> for FreshHandlerExportHandler {
       _ => return,
     };
 
-    if !ALLOWED_EXPORTS.iter().any(|allowed| name == *allowed) {
+    if !ALLOWED_EXPORTS.contains(&name) {
       ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
