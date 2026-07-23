@@ -116,7 +116,6 @@
     "prefer-ascii",
     "prefer-const",
     "prefer-namespace-keyword",
-    "prefer-primordials",
     "require-await",
     "require-yield",
     "rules-of-hooks",
