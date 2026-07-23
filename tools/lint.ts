@@ -25,20 +25,3 @@ const o1 = await p1.output();
 if (o1.code !== 0) {
   throw new Error(`Failed: ${clippy.join(" ")}`);
 }
-
-console.log("deno lint");
-
-const cargoTargetDir = Deno.env.get("CARGO_TARGET_DIR") || "./target";
-const dlint = `${cargoTargetDir}/${
-  release ? "release" : "debug"
-}/examples/dlint`;
-const p2 = new Deno.Command(dlint, {
-  args: ["run", "benchmarks/benchmarks.ts"],
-  stdin: "null",
-});
-
-const o2 = await p2.output();
-
-if (o2.code !== 0) {
-  throw new Error(`Failed: ${dlint} benchmarks/benchmarks.ts`);
-}

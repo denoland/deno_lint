@@ -1,8 +1,6 @@
 {
   "lock": false,
   "exclude": [
-    "target",
-    "examples",
-    "benchmarks/oak"
+    "target"
   ]
 }
