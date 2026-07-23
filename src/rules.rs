@@ -32,6 +32,7 @@ pub mod jsx_curly_braces;
 pub mod jsx_key;
 pub mod jsx_no_children_prop;
 pub mod jsx_no_comment_text_nodes;
+pub mod jsx_no_conflicting_pragmas;
 pub mod jsx_no_duplicate_props;
 pub mod jsx_no_unescaped_entities;
 pub mod jsx_no_useless_fragment;
@@ -274,6 +275,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(jsx_key::JSXKey),
     Box::new(jsx_no_children_prop::JSXNoChildrenProp),
     Box::new(jsx_no_comment_text_nodes::JSXNoCommentTextNodes),
+    Box::new(jsx_no_conflicting_pragmas::JSXNoConflictingPragmas),
     Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
     Box::new(jsx_no_unescaped_entities::JSXNoUnescapedEntities),
     Box::new(jsx_no_useless_fragment::JSXNoUselessFragment),
