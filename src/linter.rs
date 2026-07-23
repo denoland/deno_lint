@@ -303,6 +303,45 @@ mod tests {
     assert_eq!(lint_with_directives(source, Some("custom-ignore")).len(), 1);
   }
 
+  // A `deno-lint-ignore` directive directly above a `{ ... }` block suppresses
+  // diagnostics anywhere inside the block, not just on the following line.
+  // See https://github.com/denoland/deno_lint/issues/476.
+  #[test]
+  fn block_scoped_ignore_directive() {
+    // Diagnostic several lines into the block is suppressed.
+    let source =
+      "// deno-lint-ignore no-debugger\n{\n  let a = 1;\n  debugger;\n}";
+    assert!(lint_with_directives(source, None).is_empty());
+
+    // Nested blocks are covered too, but code after the block is not.
+    let source = "\
+// deno-lint-ignore no-debugger
+{
+  debugger;
+  {
+    debugger;
+  }
+}
+debugger;";
+    assert_eq!(lint_with_directives(source, None).len(), 1);
+
+    // Without a directive, a diagnostic inside the block still fires.
+    let source = "{\n  debugger;\n}";
+    assert_eq!(lint_with_directives(source, None).len(), 1);
+
+    // "Blocks only": a directive before a function attaches to the function,
+    // not its body block, so it does not swallow deeply nested diagnostics.
+    // The `debugger` in the body must still be reported (the unused directive
+    // additionally triggers `ban-unused-ignore`, which is the desired signal).
+    let source =
+      "// deno-lint-ignore no-debugger\nfunction foo() {\n  debugger;\n}";
+    let diagnostics = lint_with_directives(source, None);
+    assert!(
+      diagnostics.iter().any(|d| d.details.code == "no-debugger"),
+      "debugger in a function body must still be reported"
+    );
+  }
+
   // With no custom directive, the default `deno-lint-ignore` still works.
   #[test]
   fn default_ignore_diagnostic_directive_is_respected() {

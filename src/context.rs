@@ -247,6 +247,8 @@ impl<'a> Context<'a> {
       };
 
       let diagnostic_line = range.text_info.line_index(range.range.start);
+
+      // Ordinary directive: `// deno-lint-ignore` on the line directly above.
       if diagnostic_line > 0 {
         if let Some(l) =
           self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
@@ -255,6 +257,25 @@ impl<'a> Context<'a> {
             continue;
           }
         }
+      }
+
+      // Block-scoped directive: `// deno-lint-ignore` before a `{ ... }` block
+      // suppresses diagnostics anywhere inside that block.
+      let mut ignored_by_block = false;
+      for (comment_line, directive) in self.line_ignore_directives.iter_mut() {
+        if let Some(block_end_line) = directive.block_end_line() {
+          let block_start_line = comment_line + 1;
+          if block_start_line <= diagnostic_line
+            && diagnostic_line <= block_end_line
+            && directive.check_used(&diagnostic.details.code)
+          {
+            ignored_by_block = true;
+            break;
+          }
+        }
+      }
+      if ignored_by_block {
+        continue;
       }
 
       filtered.push(diagnostic);

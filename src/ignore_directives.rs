@@ -7,6 +7,7 @@ use deno_ast::SourceTextInfoProvider;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
 use deno_ast::view as ast_view;
+use deno_ast::view::NodeTrait;
 use deno_ast::RootNode;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -25,12 +26,27 @@ impl DirectiveKind for File {}
 pub struct IgnoreDirective<T: DirectiveKind> {
   range: SourceRange,
   codes: HashMap<String, CodeStatus>,
+  /// For a directive that immediately precedes a `{ ... }` block, the line the
+  /// block ends on (0-indexed, inclusive). The directive then suppresses
+  /// diagnostics anywhere inside the block, not just on the following line.
+  /// `None` for ordinary next-line directives.
+  block_end_line: Option<usize>,
   _marker: std::marker::PhantomData<T>,
 }
 
 impl<T: DirectiveKind> IgnoreDirective<T> {
   pub fn range(&self) -> SourceRange {
     self.range
+  }
+
+  /// The last line (0-indexed, inclusive) covered by this directive when it is
+  /// block-scoped; see [`IgnoreDirective::block_end_line`] field docs.
+  pub fn block_end_line(&self) -> Option<usize> {
+    self.block_end_line
+  }
+
+  fn set_block_end_line(&mut self, line: usize) {
+    self.block_end_line = Some(line);
   }
 
   /// If the directive has no codes specified, it means all the rules should be
@@ -72,7 +88,7 @@ pub fn parse_line_ignore_directives(
   ignore_diagnostic_directive: &str,
   program: ast_view::Program,
 ) -> HashMap<usize, LineIgnoreDirective> {
-  program
+  let mut directives: HashMap<usize, LineIgnoreDirective> = program
     .comment_container()
     .all_comments()
     .filter_map(|comment| {
@@ -89,7 +105,53 @@ pub fn parse_line_ignore_directives(
         },
       )
     })
-    .collect()
+    .collect();
+
+  // When a directive immediately precedes a `{ ... }` block, extend its
+  // coverage to the whole block. Only worth walking the AST if there are
+  // directives to extend.
+  if !directives.is_empty() {
+    extend_block_ignore_directives(program, &mut directives);
+  }
+
+  directives
+}
+
+/// For every `{ ... }` block whose immediately preceding line is a
+/// `deno-lint-ignore` directive, records the block's end line on that directive
+/// so it suppresses diagnostics anywhere inside the block (see
+/// https://github.com/denoland/deno_lint/issues/476).
+///
+/// Only bare/explicit blocks are covered: the directive must be a leading
+/// comment of a `BlockStmt`. A directive placed before a function, class or
+/// other statement attaches to that node rather than to a `BlockStmt`, so it
+/// keeps the ordinary next-line behavior and does not silently swallow deeply
+/// nested diagnostics.
+fn extend_block_ignore_directives(
+  program: ast_view::Program,
+  directives: &mut HashMap<usize, LineIgnoreDirective>,
+) {
+  let text_info = program.text_info();
+  let comments = program.comment_container();
+
+  let mut stack = vec![program.as_node()];
+  while let Some(node) = stack.pop() {
+    if let ast_view::Node::BlockStmt(block) = node {
+      let block_range = block.range();
+      let block_start_line = text_info.line_index(block_range.start);
+      let block_end_line = text_info.line_index(block_range.end);
+      for comment in comments.leading_comments(block_range.start) {
+        let comment_end_line = text_info.line_index(comment.range().end);
+        // The directive must sit on the line directly above the block's `{`.
+        if comment_end_line + 1 == block_start_line {
+          if let Some(directive) = directives.get_mut(&comment_end_line) {
+            directive.set_block_end_line(block_end_line);
+          }
+        }
+      }
+    }
+    stack.extend(node.children());
+  }
 }
 
 pub fn parse_file_ignore_directives(
@@ -177,6 +239,7 @@ fn parse_ignore_comment<T: DirectiveKind>(
       return Some(IgnoreDirective::<T> {
         range: comment.range(),
         codes,
+        block_end_line: None,
         _marker: std::marker::PhantomData,
       });
     }
@@ -189,6 +252,41 @@ fn parse_ignore_comment<T: DirectiveKind>(
 mod tests {
   use super::*;
   use crate::test_util;
+
+  #[test]
+  fn test_block_scoped_directive_coverage() {
+    // A directive directly above a bare `{ ... }` block records the block's
+    // end line, so it covers the whole block.
+    let source_code =
+      "// deno-lint-ignore no-explicit-any\n{\n  let a: any;\n  let b: any;\n}";
+    test_util::parse_and_then(source_code, |program| {
+      let directives =
+        parse_line_ignore_directives("deno-lint-ignore", program);
+      let d = directives.get(&0).unwrap();
+      // The closing `}` is on line 4 (0-indexed).
+      assert_eq!(d.block_end_line(), Some(4));
+    });
+
+    // A directive above a function attaches to the function, not its body
+    // block, so no block coverage is recorded ("blocks only").
+    let source_code =
+      "// deno-lint-ignore no-explicit-any\nfunction foo(): any {\n  let a: any;\n}";
+    test_util::parse_and_then(source_code, |program| {
+      let directives =
+        parse_line_ignore_directives("deno-lint-ignore", program);
+      let d = directives.get(&0).unwrap();
+      assert_eq!(d.block_end_line(), None);
+    });
+
+    // An ordinary next-line directive (no following block) has no coverage.
+    let source_code = "// deno-lint-ignore no-explicit-any\nconst a: any = 1;";
+    test_util::parse_and_then(source_code, |program| {
+      let directives =
+        parse_line_ignore_directives("deno-lint-ignore", program);
+      let d = directives.get(&0).unwrap();
+      assert_eq!(d.block_end_line(), None);
+    });
+  }
 
   fn code_map(
     codes: impl IntoIterator<Item = &'static str>,
