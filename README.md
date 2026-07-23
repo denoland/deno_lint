@@ -19,46 +19,7 @@ The list of available rules and their documentation is hosted at
 
 ## Example
 
-`examples/dlint/main.rs` provides a minimal standalone binary demonstrating how
-`deno_lint` can be used as a crate.
-
-```shell
-# Build standalone binary
-$ cargo build --example dlint
-
-$ ./target/debug/examples/dlint --help
-
-dlint
-
-USAGE:
-    dlint <SUBCOMMAND>
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-SUBCOMMANDS:
-    help     Prints this message or the help of the given subcommand(s)
-    rules
-    run
-
-$ ./target/debug/examples/dlint run ../deno/std/http/server.ts ../deno/std/http/file_server.ts
-(no-empty) Empty block statement
-  --> ../deno/std/http/server.ts:93:14
-   |
-93 |       } catch {}
-   |               ^^
-   |
-(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
- --> ../deno/std/http/file_server.ts:5:0
-  |
-5 | // TODO Stream responses instead of reading them into memory.
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-Found 2 problems
-```
-
-For a more complete integration, see how `deno_lint` is used in
+To see how `deno_lint` is used as a crate, look at how it is integrated in
 [`deno`](https://github.com/denoland/deno/blob/main/cli/tools/lint/mod.rs).
 
 ## Developing

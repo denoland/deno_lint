@@ -12,7 +12,7 @@ pub struct ConstructorSuper;
 const CODE: &str = "constructor-super";
 
 // This rule currently differs from the ESlint implementation
-// as there is currently no way of handling code paths in dlint
+// as there is currently no way of handling code paths in deno_lint
 impl LintRule for ConstructorSuper {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED]

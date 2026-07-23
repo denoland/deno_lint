@@ -5,19 +5,6 @@ console.log("rustfmt");
 
 const checkArgs = check ? ["--check"] : [];
 
-const p1 = new Deno.Command("rustfmt", {
-  args: [...checkArgs, "examples/dlint/main.rs"],
-  stdin: "null",
-}).spawn();
-
-const result1 = await p1.status;
-
-if (!result1.success) {
-  throw new Error(
-    `Failed: rustfmt ${check ? "--check" : ""}`,
-  );
-}
-
 const p2 = new Deno.Command("rustfmt", {
   args: [...checkArgs, "src/lib.rs"],
   stdin: "null",
