@@ -345,6 +345,7 @@ fn lint(
       default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
     },
     external_linter: None,
+    source_mapping: None,
   });
   match lint_result {
     Ok((source, diagnostics)) => (source, diagnostics),
