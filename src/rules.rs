@@ -44,6 +44,7 @@ pub mod no_await_in_sync_fn;
 pub mod no_boolean_literal_for_arguments;
 pub mod no_case_declarations;
 pub mod no_class_assign;
+pub mod no_commonjs_exports;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
 pub mod no_console;
@@ -286,6 +287,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_boolean_literal_for_arguments::NoBooleanLiteralForArguments),
     Box::new(no_case_declarations::NoCaseDeclarations),
     Box::new(no_class_assign::NoClassAssign),
+    Box::new(no_commonjs_exports::NoCommonjsExports),
     Box::new(no_compare_neg_zero::NoCompareNegZero),
     Box::new(no_cond_assign::NoCondAssign),
     Box::new(no_console::NoConsole),
