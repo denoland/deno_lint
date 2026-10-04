@@ -25,6 +25,7 @@
     "jsx-key",
     "jsx-no-children-prop",
     "jsx-no-comment-text-nodes",
+    "jsx-no-conflicting-pragmas",
     "jsx-no-danger-with-children",
     "jsx-no-duplicate-props",
     "jsx-no-unescaped-entities",
