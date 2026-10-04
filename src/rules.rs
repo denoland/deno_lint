@@ -26,6 +26,10 @@ pub mod fresh_handler_export;
 pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
+pub mod jsx_a11y_anchor_has_content;
+pub mod jsx_a11y_heading_has_content;
+pub mod jsx_a11y_html_has_lang;
+pub mod jsx_a11y_iframe_has_title;
 pub mod jsx_boolean_value;
 pub mod jsx_button_has_type;
 pub mod jsx_curly_braces;
@@ -268,6 +272,10 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(fresh_server_event_handlers::FreshServerEventHandlers),
     Box::new(getter_return::GetterReturn),
     Box::new(guard_for_in::GuardForIn),
+    Box::new(jsx_a11y_anchor_has_content::JSXA11yAnchorHasContent),
+    Box::new(jsx_a11y_heading_has_content::JSXA11yHeadingHasContent),
+    Box::new(jsx_a11y_html_has_lang::JSXA11yHtmlHasLang),
+    Box::new(jsx_a11y_iframe_has_title::JSXA11yIframeHasTitle),
     Box::new(jsx_boolean_value::JSXBooleanValue),
     Box::new(jsx_button_has_type::JSXButtonHasType),
     Box::new(jsx_curly_braces::JSXCurlyBraces),
