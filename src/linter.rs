@@ -88,6 +88,20 @@ pub struct LintFileOptions {
   pub media_type: MediaType,
   pub config: LintConfig,
   pub external_linter: Option<ExternalLinterCb>,
+  /// Optional mapping info to translate diagnostic positions/fixes back to
+  /// coordinates in the original, parent file (e.g. for Vue or Svelte SFCs).
+  pub source_mapping: Option<SourceMapping>,
+}
+
+/// Mapping information used to translate source positions/ranges and fixes of
+/// diagnostics generated for an extracted code segment (like a `<script>` tag)
+/// back to positions relative to the original, parent source file.
+#[derive(Debug, Clone)]
+pub struct SourceMapping {
+  /// The full source code of the parent file.
+  pub original_source: String,
+  /// The start index of the extracted code block relative to the parent file (in bytes).
+  pub byte_offset: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -126,6 +140,7 @@ impl Linter {
       options.config.default_jsx_factory,
       options.config.default_jsx_fragment_factory,
       options.external_linter,
+      options.source_mapping,
     );
 
     Ok((parsed_source, diagnostics))
@@ -135,11 +150,15 @@ impl Linter {
   ///
   /// This method is useful in context where the file is already parsed for other
   /// purposes like transpilation or LSP analysis.
+  ///
+  /// `maybe_source_mapping` is an optional parameter to map diagnostic ranges
+  /// and fixes back to the coordinates of the original template file.
   pub fn lint_with_ast(
     &self,
     parsed_source: &ParsedSource,
     config: LintConfig,
     maybe_external_linter: Option<ExternalLinterCb>,
+    maybe_source_mapping: Option<SourceMapping>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
     self.lint_inner(
@@ -147,6 +166,7 @@ impl Linter {
       config.default_jsx_factory,
       config.default_jsx_fragment_factory,
       maybe_external_linter,
+      maybe_source_mapping,
     )
   }
 
@@ -193,10 +213,11 @@ impl Linter {
     default_jsx_factory: Option<String>,
     default_jsx_fragment_factory: Option<String>,
     maybe_external_linter: Option<ExternalLinterCb>,
+    maybe_source_mapping: Option<SourceMapping>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_inner");
 
-    let diagnostics = parsed_source.with_view(|pg| {
+    let mut diagnostics = parsed_source.with_view(|pg| {
       // If a top-level ignore directive exists, eg:
       // ```
       //   // deno-lint-ignore-file
@@ -245,6 +266,38 @@ impl Linter {
       self.collect_diagnostics(context, external_rule_codes)
     });
 
+    if let Some(mapping) = maybe_source_mapping {
+      let original_text_info =
+        deno_ast::SourceTextInfo::from_string(mapping.original_source);
+      for diagnostic in &mut diagnostics {
+        if let Some(ref mut range) = diagnostic.range {
+          range.range = deno_ast::SourceRange {
+            start: range.range.start + mapping.byte_offset,
+            end: range.range.end + mapping.byte_offset,
+          };
+          range.text_info = original_text_info.clone();
+        }
+
+        for fix in &mut diagnostic.details.fixes {
+          for change in &mut fix.changes {
+            change.range = deno_ast::SourceRange {
+              start: change.range.start + mapping.byte_offset,
+              end: change.range.end + mapping.byte_offset,
+            };
+          }
+        }
+      }
+
+      diagnostics.sort_by(|a, b| {
+        let a_range = a.range.as_ref().map(|r| r.range.start);
+        let b_range = b.range.as_ref().map(|r| r.range.start);
+        match a_range.cmp(&b_range) {
+          std::cmp::Ordering::Equal => a.code().cmp(&b.code()),
+          cmp => cmp,
+        }
+      });
+    }
+
     diagnostics
   }
 }
@@ -276,6 +329,7 @@ mod tests {
           default_jsx_fragment_factory: None,
         },
         external_linter: None,
+        source_mapping: None,
       })
       .unwrap();
     diagnostics
@@ -308,5 +362,57 @@ mod tests {
   fn default_ignore_diagnostic_directive_is_respected() {
     let source = "// deno-lint-ignore no-debugger\ndebugger;";
     assert!(lint_with_directives(source, None).is_empty());
+  }
+
+  /// Verifies that linting an extracted script block from a markup template file
+  /// (e.g. Vue SFC or Svelte component) correctly translates the diagnostic positions,
+  /// line/column indexes, and source text info back to the parent file coordinates.
+  #[test]
+  fn sfc_source_mapping_works() {
+    // A simulated Vue Single File Component (SFC)
+    let original = "<template>\n  <div>Hello</div>\n</template>\n<script lang=\"ts\">\n  debugger;\n</script>";
+    // The extracted script block code to be linted
+    let script = "  debugger;";
+    // Calculate the start position of this block within the parent SFC file
+    let byte_offset = original.find(script).unwrap();
+
+    let linter = Linter::new(LinterOptions {
+      rules: vec![Box::new(NoDebugger)],
+      all_rule_codes: [Cow::from("no-debugger")].into_iter().collect(),
+      custom_ignore_file_directive: None,
+      custom_ignore_diagnostic_directive: None,
+    });
+    let specifier = ModuleSpecifier::parse("file:///foo.vue.ts").unwrap();
+    let (_, diagnostics) = linter
+      .lint_file(LintFileOptions {
+        specifier,
+        source_code: script.to_string(),
+        media_type: MediaType::TypeScript,
+        config: LintConfig {
+          default_jsx_factory: None,
+          default_jsx_fragment_factory: None,
+        },
+        external_linter: None,
+        source_mapping: Some(SourceMapping {
+          original_source: original.to_string(),
+          byte_offset,
+        }),
+      })
+      .unwrap();
+
+    assert_eq!(diagnostics.len(), 1);
+    let diag = &diagnostics[0];
+    let range = diag.range.as_ref().unwrap();
+
+    // Check that start offset points to the original template file
+    assert_eq!(
+      range.range.start,
+      deno_ast::StartSourcePos::START_SOURCE_POS + byte_offset + 2
+    );
+
+    // Check that the line is mapped correctly (line 5 in the Vue SFC, so index 4)
+    let line_and_col = range.text_info.line_and_column_index(range.range.start);
+    assert_eq!(line_and_col.line_index, 4);
+    assert_eq!(line_and_col.column_index, 2);
   }
 }

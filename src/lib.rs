@@ -61,6 +61,7 @@ mod lint_tests {
           default_jsx_fragment_factory: None,
         },
         external_linter: None,
+        source_mapping: None,
       })
       .expect("Failed to lint");
     diagnostics
@@ -83,6 +84,7 @@ mod lint_tests {
         default_jsx_factory: None,
         default_jsx_fragment_factory: None,
       },
+      None,
       None,
     )
   }
