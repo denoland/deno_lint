@@ -38,6 +38,7 @@
     "no-boolean-literal-for-arguments",
     "no-case-declarations",
     "no-class-assign",
+    "no-commonjs",
     "no-compare-neg-zero",
     "no-cond-assign",
     "no-console",
