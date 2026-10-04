@@ -79,6 +79,7 @@ pub mod no_import_prefix;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
+pub mod no_invalid_remove_event_listener;
 pub mod no_invalid_triple_slash_reference;
 pub mod no_irregular_whitespace;
 pub mod no_misused_new;
@@ -323,6 +324,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_inferrable_types::NoInferrableTypes),
     Box::new(no_inner_declarations::NoInnerDeclarations),
     Box::new(no_invalid_regexp::NoInvalidRegexp),
+    Box::new(no_invalid_remove_event_listener::NoInvalidRemoveEventListener),
     Box::new(no_invalid_triple_slash_reference::NoInvalidTripleSlashReference),
     Box::new(no_irregular_whitespace::NoIrregularWhitespace),
     Box::new(no_misused_new::NoMisusedNew),
