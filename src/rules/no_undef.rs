@@ -5,11 +5,13 @@ use super::{Context, LintRule};
 use crate::globals::GLOBALS;
 use crate::Program;
 use crate::ProgramRef;
+use deno_ast::swc::common::comments::{Comment, CommentKind};
 use deno_ast::swc::{
   ast::*,
   ecma_visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SourceRangedForSpanned;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct NoUndef;
@@ -25,7 +27,10 @@ impl LintRule for NoUndef {
     program: Program<'view>,
   ) {
     let program = program_ref(program);
-    let mut visitor = NoUndefVisitor::new(context);
+    // Collect globals declared via eslint-style `/* global foo */` comments
+    // before borrowing `context` mutably for the visitor.
+    let declared_globals = collect_declared_globals(context.all_comments());
+    let mut visitor = NoUndefVisitor::new(context, declared_globals);
     match program {
       ProgramRef::Module(m) => m.visit_with(&mut visitor),
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
@@ -33,13 +38,54 @@ impl LintRule for NoUndef {
   }
 }
 
+/// Collects the names of globals declared through eslint-compatible
+/// `/* global foo */` (or `/* globals foo */`) block comments.
+///
+/// Names may carry an eslint writability hint (e.g. `foo:writable`,
+/// `bar:readonly`, legacy `baz:true`). Since `no-undef` only cares whether a
+/// name is defined, the hint is parsed off and ignored.
+fn collect_declared_globals<'a>(
+  comments: impl Iterator<Item = &'a Comment>,
+) -> HashSet<String> {
+  let mut globals = HashSet::new();
+  for comment in comments {
+    if comment.kind != CommentKind::Block {
+      continue;
+    }
+    let text = comment.text.trim_start();
+    // The directive keyword must be exactly `global` or `globals`, followed by
+    // whitespace, so that identifiers like `globalThis` aren't mistaken for it.
+    let Some(rest) = text.strip_prefix("global") else {
+      continue;
+    };
+    let rest = rest.strip_prefix('s').unwrap_or(rest);
+    if !rest.starts_with(|c: char| c.is_whitespace()) {
+      continue;
+    }
+    for entry in rest.split(',') {
+      let name = entry.split(':').next().unwrap_or("").trim();
+      if !name.is_empty() {
+        globals.insert(name.to_string());
+      }
+    }
+  }
+  globals
+}
+
 struct NoUndefVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
+  declared_globals: HashSet<String>,
 }
 
 impl<'c, 'view> NoUndefVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
+  fn new(
+    context: &'c mut Context<'view>,
+    declared_globals: HashSet<String>,
+  ) -> Self {
+    Self {
+      context,
+      declared_globals,
+    }
   }
 
   fn check(&mut self, ident: &Ident) {
@@ -63,6 +109,11 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
 
     // Globals
     if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
+      return;
+    }
+
+    // Globals declared via `/* global foo */` comments
+    if self.declared_globals.contains(&*ident.sym) {
       return;
     }
 
@@ -299,6 +350,16 @@ mod tests {
       "const foo = ([a, x]: [number, number], [b]: [boolean]) => {};",
       "const foo = ([a]: [number], [b, y]: [boolean, boolean]) => {};",
       "const foo = ({ a }: { a: number }, [b]: [boolean]) => {};",
+
+      // https://github.com/denoland/deno_lint/issues/1287
+      // eslint-style `/* global */` comments declare allowed globals
+      "/* global a */ a;",
+      "/* global a, b */ a; b;",
+      "/* globals a, b */ a; b;",
+      "/* global a:writable */ a = 1;",
+      "/* global a:readonly, b:writable */ a; b = 1;",
+      "/* global a: true */ a;",
+      "/* global\n  a,\n  b\n*/ a; b;",
     };
   }
 
@@ -386,6 +447,28 @@ mod tests {
         {
           col: 34,
           message: "Bar is not defined",
+        },
+      ],
+      // `/* global */` only declares the listed names; others still error.
+      "/* global a */ b;": [
+        {
+          col: 15,
+          message: "b is not defined",
+        },
+      ],
+      // A line comment is not a global directive.
+      "// global a\na;": [
+        {
+          line: 2,
+          col: 0,
+          message: "a is not defined",
+        },
+      ],
+      // `globalThing` must not be parsed as a `global` directive.
+      "/* globalThing a */ a;": [
+        {
+          col: 20,
+          message: "a is not defined",
         },
       ],
     };
