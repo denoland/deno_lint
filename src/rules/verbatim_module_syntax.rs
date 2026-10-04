@@ -47,6 +47,10 @@ enum Hint {
   ChangeImportToImportType,
   #[display(fmt = "Change `export` to `export type`")]
   ChangeExportToExportType,
+  #[display(fmt = "Extract default import to type-only import declaration")]
+  ExtractDefaultImportType,
+  #[display(fmt = "Change `import` to `import type` and extract out separate `import type` for default import")]
+  ChangeImportToImportTypes,
   #[display(fmt = "Add a `type` keyword before the identifier")]
   AddTypeKeyword,
   #[display(fmt = "Change to side effect import for consistent behavior")]
@@ -653,6 +657,24 @@ mod tests {
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_ADD_TYPE_KEYWORD_DESC, "type Test = 'test';\nexport type { Test };"),
+        }
+      ],
+      "import React, { useState } from 'react';\nuseState(true);\nexport type Test = React;": [
+        {
+          line: 1,
+          col: 7,
+          message: Message::ImportIdentUsedInTypes,
+          hint: Hint::ExtractDefaultImportType,
+          fix: (FIX_DESC, "import type React from 'react'\nimport { useState } from 'react';\nuseState(true);\nexport type Test = React;"),
+        }
+      ],
+      "import a, { b } from 'react';\nexport type Test = a | b;": [
+        {
+          line: 1,
+          col: 7,
+          message: Message::AllExportIdentsUsedInTypes,
+          hint: Hint::ChangeImportToImportTypes,
+          fix: (FIX_DESC, "import type a from 'react'\nimport type { b } from 'react';\nuseState(true);\nexport type Test = React;"),
         }
       ],
     };
