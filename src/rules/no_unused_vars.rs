@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::diagnostic::{LintFix, LintFixChange};
 use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
@@ -18,6 +19,7 @@ use deno_ast::swc::ast::{
   TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use deno_ast::swc::ast::{Id, SimpleAssignTarget};
+use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::ecma_visit::{Visit, VisitWith};
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::view::AssignOp;
@@ -27,6 +29,7 @@ use if_chain::if_chain;
 use std::collections::HashSet;
 use std::iter;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 #[derive(Debug)]
 pub struct NoUnusedVars;
@@ -37,6 +40,8 @@ const CODE: &str = "no-unused-vars";
 enum NoUnusedVarsMessage {
   #[display(fmt = "`{}` is never used", _0)]
   NeverUsed(String),
+  #[display(fmt = "`{}` is never used outside of doc comments", _0)]
+  NeverUsedOutsideDocComments(String),
 }
 
 #[derive(Display)]
@@ -80,6 +85,18 @@ impl LintRule for NoUnusedVars {
     match program {
       ProgramRef::Module(m) => m.visit_with(&mut collector),
       ProgramRef::Script(s) => s.visit_with(&mut collector),
+    }
+
+    // Collect symbols referenced in doc comments. Instead of going through all leading comments we
+    // could use `context.leading_comments_at(node.start())` for all declaration nodes in
+    // `Collector`, but that would require us to add handling for many node types, so instead we go
+    // through all comments in the program at once.
+    //
+    // The downside to this approach is that we don't have a `SyntaxContext` for each symbol, but
+    // in any case not all nodes that can have leading comments have a `SyntaxContext`, so we'd need
+    // to handle empty-`SyntaxContext` references anyway.
+    for comment in context.comments().leading_map().values().flatten() {
+      collect_if_doc_comment(&mut collector.used_types, comment);
     }
 
     let mut visitor = NoUnusedVarVisitor::new(
@@ -503,10 +520,99 @@ fn get_id(r: &TsEntityName) -> Id {
   }
 }
 
+/// Collects links to symbols in the `comment` if it is a documentation comment.
+fn collect_if_doc_comment(
+  seen: &mut HashSet<Id>,
+  comment: &deno_ast::swc::common::comments::Comment,
+) {
+  static JSDOC_LINKS_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    // Same start as Deno uses in its LSP:
+    // https://github.com/denoland/deno/blob/e0bb51f8f9fb3be754d8d70fed481b45ca78d066/cli/lsp/tsc.rs#L110.
+    regex::Regex::new(r"(?i)\{@(?:link|linkplain|linkcode)\s+").unwrap()
+  });
+
+  if comment.kind != deno_ast::swc::common::comments::CommentKind::Block {
+    return;
+  }
+  let text = &*comment.text;
+  if !text.starts_with('*') {
+    return;
+  }
+  let mut offset = 0;
+  while let Some(m) = JSDOC_LINKS_RE.find_at(text, offset) {
+    offset = collect_doc_comment_link(seen, m.end(), text);
+  }
+}
+
+/// Collects linked symbols in `text`, with `text` assumed to start after `{@linkcode ` or similar.
+fn collect_doc_comment_link(
+  seen: &mut HashSet<Id>,
+  mut offset: usize,
+  text: &str,
+) -> usize {
+  let mut paren_balance: usize = 0;
+  let mut angle_balance: usize = 0;
+  let mut curly_balance: usize = 0;
+
+  while offset < text.len() {
+    let (is_open, balance) = match text.as_bytes()[offset] {
+      b'(' => (true, &mut paren_balance),
+      b')' => (false, &mut paren_balance),
+      b'{' => (true, &mut curly_balance),
+      b'}' => (false, &mut curly_balance),
+      b'<' => (true, &mut angle_balance),
+      b'>' => (false, &mut angle_balance),
+      b' ' | b'\t' | b'\n' | b'\r' | b',' | b':' => {
+        // Whitespace or some other control character; skip. Note that we only handle ASCII
+        // whitespace; it should be extremely rare to encounter Unicode whitespace here.
+        if paren_balance == 0 && angle_balance == 0 && curly_balance == 0 {
+          // If any non-word character appears and we haven't seen parentheses or any such
+          // character, we are dealing with a plain identifier and can stop now.
+          break;
+        }
+        offset += 1;
+        continue;
+      }
+      _ => {
+        // Try to parse a word.
+        let end = text[offset..]
+          .find(|ch: char| !ch.is_alphanumeric())
+          .unwrap_or(text.len());
+
+        if end == 0 {
+          // Unknown character; stop parsing.
+          break;
+        }
+
+        let word = &text[offset..offset + end];
+        let id = deno_ast::swc::atoms::Atom::new(word);
+
+        seen.insert((id, SyntaxContext::empty()));
+        offset += end;
+        continue;
+      }
+    };
+
+    if is_open {
+      *balance += 1;
+    } else if *balance > 0 {
+      *balance -= 1;
+    } else {
+      // End of whatever structure we were parsing; stop looking for identifiers.
+      break;
+    }
+
+    offset += 1;
+  }
+
+  offset
+}
+
 struct NoUnusedVarVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
   used_vars: HashSet<Id>,
   used_types: HashSet<Id>,
+  in_type_only_context: bool,
 }
 
 impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
@@ -519,6 +625,7 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
       context,
       used_vars,
       used_types,
+      in_type_only_context: false,
     }
   }
 }
@@ -573,6 +680,56 @@ impl NoUnusedVarVisitor<'_, '_> {
         ident.to_hint(),
       );
     }
+  }
+
+  /// Handles an imported identifier `ident`, possibly adding a diagnostic.
+  fn handle_named_import(&mut self, specifier: &ImportNamedSpecifier) {
+    let ident = &specifier.local;
+
+    if ident.sym.starts_with('_') {
+      return;
+    }
+    let id = ident.to_id();
+    if self.used_types.contains(&id) {
+      return;
+    }
+
+    let id_empty_ctx = (id.0, SyntaxContext::empty());
+    if !self.used_types.contains(&id_empty_ctx) {
+      // Not used in a doc comment either, check normally.
+      self.handle_id(IdentKind::NamedImport(ident));
+      return;
+    }
+
+    if specifier.is_type_only
+      || self.in_type_only_context
+      || !self.context.parsed_source().media_type().is_typed()
+    {
+      // Either it is already a `type` import or we can't suggest it is made into one, so we can
+      // stop here.
+      return;
+    }
+
+    let id = (id_empty_ctx.0, id.1);
+    if self.used_vars.contains(&id) {
+      // It is _also_ available as a variable, so we can stop here.
+      return;
+    }
+
+    // It is imported, but could be imported as a `type` import. Suggest that.
+    self.context.add_diagnostic_with_fixes(
+      ident.range(),
+      CODE,
+      NoUnusedVarsMessage::NeverUsedOutsideDocComments(ident.sym.to_string()),
+      None,
+      vec![LintFix {
+        description: "Make this a type import".into(),
+        changes: vec![LintFixChange {
+          new_text: format!("type {}", ident.sym).into(),
+          range: ident.range(),
+        }],
+      }],
+    );
   }
 }
 
@@ -684,11 +841,15 @@ impl Visit for NoUnusedVarVisitor<'_, '_> {
     param.visit_children_with(self);
   }
 
+  fn visit_import_decl(&mut self, node: &deno_ast::swc::ast::ImportDecl) {
+    let in_type_only_context =
+      std::mem::replace(&mut self.in_type_only_context, node.type_only);
+    node.visit_children_with(self);
+    self.in_type_only_context = in_type_only_context;
+  }
+
   fn visit_import_named_specifier(&mut self, import: &ImportNamedSpecifier) {
-    if self.used_types.contains(&import.local.to_id()) {
-      return;
-    }
-    self.handle_id(IdentKind::NamedImport(&import.local));
+    self.handle_named_import(import);
   }
 
   fn visit_import_default_specifier(
@@ -1565,6 +1726,49 @@ export default <foo />;
 import { Fragment } from "./dummy.ts";
 export default <></>;
       "#,
+      r#"
+import type { Foo, Bar, Baz } from "./dummy.ts";
+/** A collection of {@link Foo foos}. */
+export class Foos {}
+// Sanity checks that the parser works correctly:
+
+/** {@linkcode} {@linkcode (} {@linkcode Bar<{}, Baz>} */
+export class Bars {}
+      "#,
+      r#"
+import type { F0, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10 } from "./dummy.ts";
+/** {@link F0} */
+export class C {
+  /** {@link F1} */
+  prop: number;
+  /** {@link F2} */
+  #private: number;
+  /** {@link F3} */
+  method() {}
+  /** {@link F4} */
+  constructor() {}
+}
+
+/** {@link F5} */
+export interface I {
+  /** {@link F6} */
+  prop: number;
+}
+
+/** {@link F7} */
+export const f = 1;
+
+/**
+ * Multiline too {@link F8}.
+ *
+ * - More... {@linkplain F9}
+ */
+export default function(a: number) {
+  /** Inline vars too {@linkcode F10}. */
+  const a = [];
+  console.log(a);
+}
+      "#,
     };
   }
 
@@ -2390,6 +2594,46 @@ export const Foo = () => {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "h"),
           hint: variant!(NoUnusedVarsHint, Alias, "h"),
+        }
+      ]
+    }
+
+    // Doc comments:
+    assert_lint_err! {
+      NoUnusedVars,
+      filename: "file:///foo.ts",
+      r#"
+import type { Foo, Bar, Baz } from "./dummy.ts";
+/** {@link Foo Bar} {@linkcode Foo<Baz, { [Bar: string]: number }> Bar}. */
+export class Foos {}
+      "#: [
+        {
+          line: 2,
+          col: 19,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Bar"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Bar"),
+        }
+      ]
+    }
+
+    // Doc comments for non-`type` imports:
+    assert_lint_err! {
+      NoUnusedVars,
+      filename: "file:///foo.ts",
+      r#"
+import { type Foo, Bar } from "./dummy.ts";
+/** {@link Foo} {@link Bar}. */
+export class Baz {}
+      "#: [
+        {
+          line: 2,
+          col: 19,
+          message: variant!(NoUnusedVarsMessage, NeverUsedOutsideDocComments, "Bar"),
+          fix: ("Make this a type import", r#"
+import { type Foo, type Bar } from "./dummy.ts";
+/** {@link Foo} {@link Bar}. */
+export class Baz {}
+      "#),
         }
       ]
     }
