@@ -190,9 +190,13 @@ impl Handler for RulesOfHooksHandler {
           self.maybe_decrease_cond_counter();
         }
       }
+      Node::CondExpr(_) => {
+        if let Some(ParentKind::Cond(_)) = self.parent_kind.pop() {
+          self.maybe_decrease_cond_counter();
+        }
+      }
       Node::FnDecl(_)
       | Node::ArrowExpr(_)
-      | Node::CondExpr(_)
       | Node::VarDeclarator(_)
       | Node::ForInStmt(_)
       | Node::ForOfStmt(_)
@@ -354,6 +358,14 @@ function doAThing() {
         useCustomHook(val > 0);
         useState(0);
       }"#,
+      r#"function Foo() {
+        useCustomHook(val ? 1 : 2);
+        useState(0);
+      }"#,
+      r#"function Foo() {
+        cond ? doThis() : doThat();
+        useState(0);
+      }"#,
     };
   }
 
@@ -449,6 +461,20 @@ function doAThing() {
       r#"function Foo() { if (cond) { return } const [state, setState] = useState(0) }"#: [
         {
           col: 64,
+          message: DiagnosticKind::Conditionally.message(),
+          hint: DiagnosticKind::Conditionally.hint(),
+        }
+      ],
+      r#"function Foo() { cond ? useState(0) : null }"#: [
+        {
+          col: 24,
+          message: DiagnosticKind::Conditionally.message(),
+          hint: DiagnosticKind::Conditionally.hint(),
+        }
+      ],
+      r#"function Foo() { useA(cond ? 1 : 2); if (cond) { useState(0) } }"#: [
+        {
+          col: 49,
           message: DiagnosticKind::Conditionally.message(),
           hint: DiagnosticKind::Conditionally.hint(),
         }
